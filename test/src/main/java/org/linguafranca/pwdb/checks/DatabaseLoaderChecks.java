@@ -40,7 +40,7 @@ public abstract class DatabaseLoaderChecks <D extends Database<D,G,E,I>, G exten
         database.visit(new Visitor.Print());
 
         // find all entries in the database
-        // the kdb version has three additional system related entries
+        // the kdb4 version has three additional system related entries
         List<? extends E> anything = database.findEntries("");
         Assert.assertTrue(10 <= anything.size());
 

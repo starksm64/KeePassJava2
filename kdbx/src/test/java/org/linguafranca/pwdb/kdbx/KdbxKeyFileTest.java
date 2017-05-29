@@ -21,6 +21,9 @@ import org.linguafranca.pwdb.kdbx.stream_3_1.KdbxHeader;
 import org.linguafranca.pwdb.kdbx.stream_3_1.KdbxSerializer;
 import org.linguafranca.pwdb.Credentials;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.InputStream;
 
 import static org.junit.Assert.assertEquals;
@@ -37,6 +40,25 @@ public class KdbxKeyFileTest {
         byte[] key = KdbxKeyFile.load(inputStream);
         assertNotNull(key);
         assertEquals(32, key.length);
+    }
+
+    @Test
+    public void testReadDBX() throws Exception {
+        // get an input stream from KDB file
+        FileInputStream kdbxIS = new FileInputStream("/Users/starksm/private/Banking/KeyPass-bak.kdbx");
+        // Read the password from /tmp/testLoadDB.pass
+        FileReader reader = new FileReader("/tmp/testLoadDB.pass");
+        BufferedReader br = new BufferedReader(reader);
+        String pass = br.readLine();
+        br.close();
+        Credentials credentials = new KdbxCreds(pass.getBytes());
+        InputStream decryptedInputStream = KdbxSerializer.createUnencryptedInputStream(credentials, new KdbxHeader(), kdbxIS);
+        byte[] buffer = new byte[1024];
+        while ( decryptedInputStream.available() > 0) {
+            int read = decryptedInputStream.read(buffer);
+            if (read == -1) break;
+            System.out.write(buffer, 0, read);
+        }
     }
 
     /*
