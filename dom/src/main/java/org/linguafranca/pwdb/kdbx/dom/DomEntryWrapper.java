@@ -81,6 +81,14 @@ public class DomEntryWrapper extends AbstractEntry <DomDatabaseWrapper, DomGroup
     }
 
     @Override
+    public boolean removeProperty(String name) throws IllegalArgumentException {
+        if (STANDARD_PROPERTY_NAMES.contains(name)) throw new IllegalArgumentException("may not remove property: " + name);
+        boolean wasRemoved = DomHelper.removeElement(String.format(DomHelper.PROPERTY_ELEMENT_FORMAT, name), element);
+        if (wasRemoved) database.setDirty(true);
+        return wasRemoved;
+    }
+
+    @Override
     public List<String> getPropertyNames() {
         ArrayList<String> result = new ArrayList<>();
         List<Element> list = DomHelper.getElements("String", element);
@@ -110,6 +118,13 @@ public class DomEntryWrapper extends AbstractEntry <DomDatabaseWrapper, DomGroup
         DomHelper.touchElement(DomHelper.LAST_MODIFICATION_TIME_ELEMENT_NAME, element);
         database.setDirty(true);
 
+    }
+
+    @Override
+    public boolean removeBinaryProperty(String name) {
+        boolean wasRemoved = DomHelper.removeElement(String.format(DomHelper.BINARY_PROPERTY_ELEMENT_FORMAT, name), element);
+        if (wasRemoved) database.setDirty(true);
+        return wasRemoved;
     }
 
     @Override
@@ -181,12 +196,24 @@ public class DomEntryWrapper extends AbstractEntry <DomDatabaseWrapper, DomGroup
     }
 
     @Override
+    public void setExpires(boolean expires) {
+        DomHelper.setElementContent(DomHelper.EXPIRES_ELEMENT_NAME, element, expires ? "True" : "False");
+    }
+
+    @Override
     public Date getExpiryTime() {
         try {
             return DomHelper.dateFormatter.parse(DomHelper.getElementContent(DomHelper.EXPIRY_TIME_ELEMENT_NAME, element));
         } catch (ParseException e) {
             return new Date(0);
         }
+    }
+
+    @Override
+    public void setExpiryTime(Date expiryTime) throws IllegalArgumentException {
+        if (expiryTime == null) throw new IllegalArgumentException("expiryTime may not be null");
+        String formatted = DomHelper.dateFormatter.format(expiryTime);
+        DomHelper.setElementContent(DomHelper.EXPIRY_TIME_ELEMENT_NAME, element, formatted);
     }
 
     @Override

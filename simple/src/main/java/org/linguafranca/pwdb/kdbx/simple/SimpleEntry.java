@@ -78,7 +78,7 @@ public class SimpleEntry extends AbstractEntry<SimpleDatabase, SimpleGroup, Simp
     protected SimpleEntry() {
         string = new ArrayList<>();
         binary = new ArrayList<>();
-        times = new Times(new Date());
+        times = new Times();
         uuid = UUID.randomUUID();
         iconID = 0;
     }
@@ -92,8 +92,9 @@ public class SimpleEntry extends AbstractEntry<SimpleDatabase, SimpleGroup, Simp
         SimpleEntry result = new SimpleEntry();
         result.database = database;
         result.parent = null;
+        // avoiding setProperty as it does a touch();
         for (String p: STANDARD_PROPERTY_NAMES) {
-            result.setProperty(p, "");
+            result.string.add(new EntryClasses.StringProperty(p, new EntryClasses.StringProperty.Value("")));
         }
         return result;
     }
@@ -111,6 +112,20 @@ public class SimpleEntry extends AbstractEntry<SimpleDatabase, SimpleGroup, Simp
         }
         this.string.add(new EntryClasses.StringProperty(s, new EntryClasses.StringProperty.Value(s1)));
         touch();
+    }
+
+    @Override
+    public boolean removeProperty(String name) throws IllegalArgumentException {
+        if (STANDARD_PROPERTY_NAMES.contains(name)) throw new IllegalArgumentException("may not remove property: " + name);
+
+        EntryClasses.StringProperty sp = getStringProperty(name, string);
+        if (sp == null) {
+            return false;
+        } else {
+            this.string.remove(sp);
+            touch();
+            return true;
+        }
     }
 
     @Override
@@ -176,6 +191,17 @@ public class SimpleEntry extends AbstractEntry<SimpleDatabase, SimpleGroup, Simp
     }
 
     @Override
+    public boolean removeBinaryProperty(String name) throws UnsupportedOperationException {
+        BinaryProperty bp = getBinaryProp(name, binary);
+        if (bp != null) {
+            binary.remove(bp);
+            touch();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     public List<String> getBinaryPropertyNames() {
         List<String> result = new ArrayList<>();
         for (EntryClasses.BinaryProperty property: this.binary) {
@@ -220,8 +246,19 @@ public class SimpleEntry extends AbstractEntry<SimpleDatabase, SimpleGroup, Simp
     }
 
     @Override
+    public void setExpires(boolean expires) {
+        times.setExpires(expires);
+    }
+
+    @Override
     public Date getExpiryTime() {
         return times.getExpiryTime();
+    }
+
+    @Override
+    public void setExpiryTime(Date expiryTime) throws IllegalArgumentException {
+        if (expiryTime == null) throw new IllegalArgumentException("expiryTime may not be null");
+        times.setExpiryTime(expiryTime);
     }
 
     @Override

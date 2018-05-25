@@ -51,7 +51,7 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
             delegate.getString().add(field);
         }
 
-        Date now = new Date();
+        Date now = new Date(System.currentTimeMillis() / 1000L * 1000L); // to nearest lower second
         Times times = new Times();
         times.setLastModificationTime(now);
         times.setCreationTime(now);
@@ -101,6 +101,26 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
         field.setValue(fieldValue);
         delegate.getString().add(field);
         touch();
+    }
+
+    @Override
+    public boolean removeProperty(String name) throws IllegalArgumentException {
+        if (STANDARD_PROPERTY_NAMES.contains(name)) throw new IllegalArgumentException("may not remove property: " + name);
+
+        StringField toRemove = null;
+        for (StringField field: delegate.getString()){
+            if (field.getKey().equals(name)) {
+                toRemove = field;
+                break;
+            }
+        }
+        if (toRemove == null) {
+            return false;
+        } else {
+            delegate.getString().remove(toRemove);
+            touch();
+            return true;
+        }
     }
 
     @Override
@@ -172,6 +192,25 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
     }
 
     @Override
+    public boolean removeBinaryProperty(String name) throws UnsupportedOperationException {
+        BinaryField toRemove = null;
+        for (BinaryField binaryField : delegate.getBinary()) {
+            if (binaryField.getKey().equals(name)) {
+                toRemove = binaryField;
+                break;
+            }
+        }
+
+        if (toRemove == null) {
+            return false;
+        } else {
+            delegate.getBinary().remove(toRemove);
+            touch();
+            return true;
+        }
+    }
+
+    @Override
     public List<String> getBinaryPropertyNames() {
         List<String> result = new ArrayList<>();
         for (BinaryField binaryField : delegate.getBinary()) {
@@ -220,8 +259,19 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
     }
 
     @Override
+    public void setExpires(boolean expires) {
+        delegate.getTimes().setExpires(true);
+    }
+
+    @Override
     public Date getExpiryTime() {
         return delegate.getTimes().getExpiryTime();
+    }
+
+    @Override
+    public void setExpiryTime(Date expiryTime) throws IllegalArgumentException {
+        if (expiryTime == null) throw new IllegalArgumentException("expiryTime may not be null");
+        delegate.getTimes().setExpiryTime(expiryTime);
     }
 
     @Override

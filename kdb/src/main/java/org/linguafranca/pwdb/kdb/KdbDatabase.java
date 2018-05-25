@@ -140,4 +140,36 @@ public class KdbDatabase extends AbstractDatabase<KdbDatabase, KdbGroup, KdbEntr
             }
         }
     }
+
+    @Override
+    public boolean isRecycleBinEnabled() {
+        return false;
+    }
+
+    @Override
+    public void enableRecycleBin(boolean enable) {
+        if (enable) {
+            throw new UnsupportedOperationException("KDB files don't have a recycle bin");
+        }
+    }
+
+    @Override
+    public KdbGroup getRecycleBin() {
+        return null;
+    }
+
+    @Override
+    public boolean supportsNonStandardPropertyNames() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsBinaryProperties() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsRecycleBin() {
+        return false;
+    }
 }
