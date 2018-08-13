@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -102,11 +103,14 @@ public class KdbxKeyFileTest {
         System.out.printf(credentials.toString());
         InputStream decryptedInputStream = KdbxSerializer.createUnencryptedInputStream(credentials, new KdbxHeader(), kdbxIS);
         byte[] buffer = new byte[1024];
+        FileOutputStream fos = new FileOutputStream("/tmp/test.kdbx");
         while ( decryptedInputStream.available() > 0) {
             int read = decryptedInputStream.read(buffer);
             if (read == -1) break;
-            System.out.write(buffer, 0, read);
+            fos.write(buffer, 0, read);
         }
+        fos.close();
+        System.out.printf("Wrote to /tmp/test.kdbx\n");
     }
     @Test
     public void loadSIDBHeader() throws IOException {
