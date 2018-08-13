@@ -9,5 +9,6 @@ gradle
 target
 *.versionsBackup
 *.iml
+*.iws
 .idea
 *.swp
