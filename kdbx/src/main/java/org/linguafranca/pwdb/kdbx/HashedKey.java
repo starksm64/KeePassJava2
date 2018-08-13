@@ -8,7 +8,7 @@ import org.linguafranca.pwdb.security.Encryption;
 public class HashedKey implements Credentials {
     private byte[] key;
 
-    HashedKey(byte[] bytes) {
+    public HashedKey(byte[] bytes) {
         MessageDigest md = Encryption.getSha256MessageDigestInstance();
         this.key = md.digest(bytes);
     }
