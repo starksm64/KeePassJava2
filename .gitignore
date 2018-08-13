@@ -7,3 +7,6 @@ gradlew.bat
 .gradle
 gradle
 *.versionsBackup
+*.iml
+.idea
+*.swp
