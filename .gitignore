@@ -6,6 +6,7 @@ gradlew
 gradlew.bat
 .gradle
 gradle
+target
 *.versionsBackup
 *.iml
 .idea
