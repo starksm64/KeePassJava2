@@ -25,18 +25,25 @@ import org.linguafranca.pwdb.kdbx.KdbxCreds;
 import org.linguafranca.pwdb.kdbx.KdbxHeader;
 import org.linguafranca.pwdb.kdbx.KdbxSerializer;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
+import org.linguafranca.pwdb.kdbx.jaxb.binding.CustomIcons;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.Times;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.util.List;
+import java.util.UUID;
+
+import javax.imageio.ImageIO;
 
 /**
  * @author jo
@@ -95,6 +102,9 @@ public class JaxbSerializableDatabaseTest {
         }
         System.out.printf(credentials.toString());
         KdbxHeader kdbxHeader = new KdbxHeader();
+        System.out.printf("Header.getCipherUuid: %s\n", kdbxHeader.getCipherUuid());
+        System.out.printf("Header.getProtectedStreamAlgorithm: %s\n", kdbxHeader.getProtectedStreamAlgorithm());
+        System.out.printf("Header.getVersion: %s\n", kdbxHeader.getVersion());
         InputStream decryptedInputStream = KdbxSerializer.createUnencryptedInputStream(credentials, kdbxHeader, kdbxIS);
         JaxbSerializableDatabase db = new JaxbSerializableDatabase();
         db.setEncryption(kdbxHeader.getStreamEncryptor());
@@ -103,12 +113,25 @@ public class JaxbSerializableDatabaseTest {
         KeePassFile.Root root = dbFile.getRoot();
         List<JaxbGroupBinding> groups = root.getGroup().getGroup();
         StringBuilder output = new StringBuilder();
-        output.append("SIKeyPass.kdbx");
+        output.append("SIKeyPass.kdbx\n");
         toString(root.getGroup(), output, "");
         for(JaxbGroupBinding group : groups) {
             toString(group, output, "  ");
         }
         System.out.println(output.toString());
+
+        // Test the icons
+        int rootIconID = root.getGroup().getIconID();
+        System.out.printf("rootIconID: %d\n", rootIconID);
+        List<CustomIcons.Icon> icons = dbFile.getMeta().getCustomIcons().getIcon();
+        for (CustomIcons.Icon icon : icons) {
+            ByteArrayInputStream data = new ByteArrayInputStream(icon.getData());
+            FileOutputStream tmpIcon = new FileOutputStream("/tmp/icon");
+            tmpIcon.write(icon.getData());
+            tmpIcon.close();
+            BufferedImage image = ImageIO.read(data);
+            System.out.printf("%s, %dx%d\n", icon.getUUID(), image.getHeight(), image.getWidth());
+        }
     }
 
     private void toString(JaxbGroupBinding group, StringBuilder sb, String indent) {
@@ -120,6 +143,13 @@ public class JaxbSerializableDatabaseTest {
         sb.append(String.format("getIsExpanded: %s\n", group.getIsExpanded()));
         sb.append(indent); sb.append("  ");
         sb.append(String.format("getIconID: %d\n", group.getIconID()));
+        sb.append(indent); sb.append("  ");
+        if(group.getCustomIconUUID() != null) {
+            sb.append(String.format("getCustomIconUUID/base64: %s\n", Helpers.base64FromUuid(group.getCustomIconUUID())));
+        }
+        sb.append(indent); sb.append("  ");
+        UUID uuid = group.getUUID();
+        sb.append(String.format("getUUID/base64: %s\n", Helpers.base64FromUuid(uuid)));
         sb.append(indent); sb.append("  ");
         sb.append(String.format("getNotes: %s\n", group.getNotes()));
         sb.append(indent); sb.append("  ");
