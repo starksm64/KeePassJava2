@@ -59,6 +59,7 @@ import org.linguafranca.pwdb.kdbx.jaxb.base.AbstractJaxbParentedBinding;
     "name",
     "notes",
     "iconID",
+    "customIconUUID",
     "times",
     "isExpanded",
     "defaultAutoTypeSequence",
@@ -83,6 +84,10 @@ public class JaxbGroupBinding
     protected String notes;
     @XmlElement(name = "IconID")
     protected int iconID;
+    @XmlElement(name = "CustomIconUUID", required = true, type = String.class)
+    @XmlJavaTypeAdapter(Adapter3 .class)
+    @XmlSchemaType(name = "base64Binary")
+    protected UUID customIconUUID;
     @XmlElement(name = "Times", required = true)
     protected Times times;
     @XmlElement(name = "IsExpanded", required = true, type = String.class)
@@ -191,6 +196,14 @@ public class JaxbGroupBinding
      */
     public void setIconID(int value) {
         this.iconID = value;
+    }
+
+    public UUID getCustomIconUUID() {
+        return customIconUUID;
+    }
+
+    public void setCustomIconUUID(UUID customIconUUID) {
+        this.customIconUUID = customIconUUID;
     }
 
     /**
