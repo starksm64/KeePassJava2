@@ -136,3 +136,4 @@ public class KeePassFX2 extends Application {
     }
 
 }
+

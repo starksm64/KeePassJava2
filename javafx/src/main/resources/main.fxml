@@ -34,7 +34,7 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
-                    <MenuItem mnemonicParsing="false" text="Quit">
+                    <MenuItem mnemonicParsing="false" onAction="#fileQuit" text="Quit">
                            <accelerator>
                               <KeyCodeCombination alt="UP" code="Q" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
                            </accelerator></MenuItem>

@@ -7,14 +7,19 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>test</artifactId>
-    <name>PWDB :: Test</name>
-    <description>Contains the shared test classes for exercising the functionality of a PWDB database implementation.</description>
+    <artifactId>javafx</artifactId>
+    <name>KeePassX :: JavaFX</name>
+    <description>The com.si JavaFX frontend</description>
 
     <dependencies>
         <dependency>
             <groupId>org.linguafranca.pwdb</groupId>
             <artifactId>database</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.linguafranca.pwdb</groupId>
+            <artifactId>KeePassJava2-jaxb</artifactId>
             <version>${project.version}</version>
         </dependency>
 

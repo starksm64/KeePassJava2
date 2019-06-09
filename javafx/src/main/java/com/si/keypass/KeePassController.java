@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -28,7 +29,6 @@ import javafx.scene.input.DataFormat;
 import javafx.stage.FileChooser;
 import javafx.util.Callback;
 import org.linguafranca.pwdb.kdbx.Helpers;
-import org.linguafranca.pwdb.kdbx.jaxb.JaxbDatabase;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.Binaries;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
@@ -229,5 +229,11 @@ public class KeePassController {
                 }
             }
         }
+    }
+
+    @FXML
+    private void fileQuit() {
+        // TODO: check for modifications
+        Platform.exit();
     }
 }
