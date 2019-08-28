@@ -26,7 +26,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/8.0.211" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
    <top>
       <VBox prefHeight="64.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
@@ -106,7 +106,7 @@
    <center>
       <TableView fx:id="entryTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
         <columns>
-            <TableColumn fx:id="imageColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" />
+            <TableColumn fx:id="imageColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" text="Icon" />
           <TableColumn fx:id="titleColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="150.0" text="Title" />
           <TableColumn fx:id="usernameColumn" maxWidth="1.7976931348623157E308" minWidth="100.0" prefWidth="150.0" text="Username" />
             <TableColumn fx:id="urlColumn" maxWidth="1.7976931348623157E308" minWidth="250.0" prefWidth="-1.0" text="URL" />

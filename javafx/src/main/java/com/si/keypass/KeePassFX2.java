@@ -21,6 +21,7 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
+import org.linguafranca.pwdb.Credentials;
 import org.linguafranca.pwdb.kdbx.CompositeKey;
 import org.linguafranca.pwdb.kdbx.HashedKey;
 import org.linguafranca.pwdb.kdbx.Helpers;
@@ -54,38 +55,12 @@ public class KeePassFX2 extends Application {
 
     private TreeItem<JaxbGroupBinding> loadDB() throws IOException {
         // get an input stream from KDB file
-        String rootDir = "/Users/starksm/Google Drive/Private/";
+        String rootDir = "/media/starksm/Samsung USB/";
+        //String rootDir = "/home/starksm/Applications/kp/";
         // A test dbx with a password of KeyPass.kdbx
         String kdbxFile = "SIKeyPass.kdbx";
         FileInputStream kdbxIS = new FileInputStream(rootDir+kdbxFile);
-        // Read the password from /tmp/testLoadDB.pass
-        FileReader reader = new FileReader("/tmp/testLoadDB.pass");
-        BufferedReader br = new BufferedReader(reader);
-        String pass = br.readLine();
-        br.close();
-        CompositeKey credentials = new CompositeKey();
-        KdbxCreds creds = new KdbxCreds(pass.getBytes());
-        System.out.printf("KdbxCreds: %s\n", Helpers.encodeBase64Content(creds.getKey()));
-        credentials.addKey(creds);
-        String[] keyFiles = {rootDir+"myqrcode.png", rootDir+"EveningFullPassort_20171229.jpg", rootDir+"ScottFullPassort_20171229.jpg"};
-        byte[] tmp = new byte[4096];
-        for(String keyFile : keyFiles) {
-            System.out.printf("Reading: %s\n", keyFile);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try(FileInputStream fis = new FileInputStream(keyFile)) {
-                int read = fis.read(tmp);
-                do {
-                    baos.write(tmp, 0, read);
-                    read = fis.read(tmp);
-                } while (read > 0);
-            }
-            baos.close();
-            byte[] key = baos.toByteArray();
-            System.out.printf("\tbytes: %d\n", key.length);
-            HashedKey hkey = new HashedKey(key);
-            System.out.printf("\t%s\n", Helpers.encodeBase64Content(hkey.getKey()));
-            credentials.addKey(hkey);
-        }
+        Credentials credentials = createCredentials(rootDir);
         System.out.printf(credentials.toString());
         KdbxHeader kdbxHeader = new KdbxHeader();
         System.out.printf("Header.getCipherUuid: %s\n", kdbxHeader.getCipherUuid());
@@ -99,7 +74,7 @@ public class KeePassFX2 extends Application {
         KeePassFile.Root root = keePassFile.getRoot();
         List<JaxbGroupBinding> groups = root.getGroup().getGroup();
         StringBuilder output = new StringBuilder();
-        output.append("SIKeyPass.kdbx\n");
+        output.append("SIKeyPass.kdbx\n" );
 
         // Icon map
         List<CustomIcons.Icon> icons = keePassFile.getMeta().getCustomIcons().getIcon();
@@ -135,5 +110,38 @@ public class KeePassFX2 extends Application {
         return groupItem;
     }
 
+    static Credentials createCredentials(String rootDir) throws IOException {
+        // Read the password from /tmp/testLoadDB.pass
+        //FileReader reader = new FileReader("/tmp/testLoadDB.pass");
+        FileReader reader = new FileReader(rootDir+"x");
+        BufferedReader br = new BufferedReader(reader);
+        String pass = br.readLine();
+        br.close();
+        CompositeKey credentials = new CompositeKey();
+        pass = pass + pass;
+        KdbxCreds creds = new KdbxCreds(pass.getBytes());
+        System.out.printf("KdbxCreds: %s\n", Helpers.encodeBase64Content(creds.getKey()));
+        credentials.addKey(creds);
+        String[] keyFiles = {rootDir+"myqrcode.png", rootDir+"EveningFullPassort_20171229.jpg", rootDir+"ScottFullPassort_20171229.jpg"};
+        byte[] tmp = new byte[4096];
+        for(String keyFile : keyFiles) {
+            System.out.printf("Reading: %s\n", keyFile);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try(FileInputStream fis = new FileInputStream(keyFile)) {
+                int read = fis.read(tmp);
+                do {
+                    baos.write(tmp, 0, read);
+                    read = fis.read(tmp);
+                } while (read > 0);
+            }
+            baos.close();
+            byte[] key = baos.toByteArray();
+            System.out.printf("\tbytes: %d\n", key.length);
+            HashedKey hkey = new HashedKey(key);
+            System.out.printf("\t%s\n", Helpers.encodeBase64Content(hkey.getKey()));
+            credentials.addKey(hkey);
+        }
+        return credentials;
+    }
 }
 

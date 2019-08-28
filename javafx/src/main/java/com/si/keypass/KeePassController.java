@@ -1,12 +1,11 @@
 package com.si.keypass;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -28,7 +27,9 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.stage.FileChooser;
 import javafx.util.Callback;
-import org.linguafranca.pwdb.kdbx.Helpers;
+import org.linguafranca.pwdb.Credentials;
+import org.linguafranca.pwdb.kdbx.*;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbSerializableDatabase;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.Binaries;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
@@ -42,13 +43,13 @@ public class KeePassController {
     TableView<KeePassEntry> entryTableView;
 
     @FXML
-    TableColumn<JaxbEntryBinding, ImageView> imageColumn;
+    TableColumn<KeePassEntry, ImageView> imageColumn;
     @FXML
-    TableColumn<JaxbEntryBinding, String> titleColumn;
+    TableColumn<KeePassEntry, String> titleColumn;
     @FXML
-    TableColumn<JaxbEntryBinding, String> usernameColumn;
+    TableColumn<KeePassEntry, String> usernameColumn;
     @FXML
-    TableColumn<JaxbEntryBinding, String> urlColumn;
+    TableColumn<KeePassEntry, String> urlColumn;
     @FXML
     TextArea notesArea;
     @FXML
@@ -66,6 +67,7 @@ public class KeePassController {
     private KeePassFile keePassFile;
     private String username;
     private String password;
+    private AtomicBoolean isModified = new AtomicBoolean();
 
     public void setRoot(TreeItem<JaxbGroupBinding> rootGroup, Map<UUID, ImageView> iconsMap, KeePassFile keePassFile) {
         this.rootGroup = rootGroup;
@@ -99,23 +101,10 @@ public class KeePassController {
                 .addListener((observable, oldValue, newValue) -> groupSelected(newValue.getValue()));
 
         entryTableView.setItems(FXCollections.observableArrayList());
-        TableColumn<KeePassEntry, javafx.scene.image.ImageView> imageColumn = new TableColumn<>();
         imageColumn.setCellValueFactory(cdf -> cdf.getValue().getIcon());
-        TableColumn<KeePassEntry, String> titleColum = new TableColumn<>();
-        titleColum.setCellValueFactory(cdf -> cdf.getValue().getTitle());
-        TableColumn<KeePassEntry, String> nameColumn = new TableColumn<>();
-        nameColumn.setCellValueFactory(cdf -> cdf.getValue().getName());
-        TableColumn<KeePassEntry, String> urlColumn = new TableColumn<>();
+        titleColumn.setCellValueFactory(cdf -> cdf.getValue().getTitle());
+        usernameColumn.setCellValueFactory(cdf -> cdf.getValue().getName());
         urlColumn.setCellValueFactory(cdf -> cdf.getValue().getURLValue());
-        entryTableView.getColumns().clear();
-        entryTableView.getColumns()
-                .add(imageColumn);
-        entryTableView.getColumns()
-                .add(titleColum);
-        entryTableView.getColumns()
-                .add(nameColumn);
-        entryTableView.getColumns()
-                .add(urlColumn);
         entryTableView.getSelectionModel()
                 .selectedItemProperty()
                 .addListener((observable, oldValue, newValue) -> entrySelected(newValue));
@@ -232,8 +221,31 @@ public class KeePassController {
     }
 
     @FXML
+    private void fileSave() {
+
+    }
+    @FXML
     private void fileQuit() {
         // TODO: check for modifications
+        if(isModified.get()) {
+
+        }
         Platform.exit();
+    }
+    private void saveChanges() throws IOException {
+        FileChooser fc = new FileChooser();
+        File saveFile = fc.showSaveDialog(null);
+        if(saveFile != null) {
+            OutputStream testStream = new FileOutputStream(saveFile);
+            // Read the password from /tmp/testLoadDB.pass
+            FileReader reader = new FileReader("/tmp/testLoadDB.pass");
+            BufferedReader br = new BufferedReader(reader);
+            String pass = br.readLine();
+            br.close();
+            CompositeKey credentials = new CompositeKey();
+            KdbxCreds creds = new KdbxCreds(pass.getBytes());
+            OutputStream outputStream = KdbxSerializer.createEncryptedOutputStream(credentials, new KdbxHeader(), testStream);
+            JaxbSerializableDatabase db = new JaxbSerializableDatabase();
+        }
     }
 }
