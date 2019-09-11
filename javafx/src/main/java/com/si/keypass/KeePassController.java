@@ -1,18 +1,29 @@
 package com.si.keypass;
 
 import java.io.*;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.si.keypass.prefs.PrefsUtils;
+import io.jsondb.JsonDBTemplate;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -25,9 +36,10 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.FileChooser;
 import javafx.util.Callback;
-import org.linguafranca.pwdb.Credentials;
+import javafx.util.Pair;
 import org.linguafranca.pwdb.kdbx.*;
 import org.linguafranca.pwdb.kdbx.jaxb.JaxbSerializableDatabase;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.Binaries;
@@ -37,6 +49,10 @@ import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
 
 public class KeePassController {
+    @FXML
+    MenuBar menuBar;
+    @FXML
+    Menu recentFilesMenu;
     @FXML
     TreeView<JaxbGroupBinding> groupTreeView;
     @FXML
@@ -53,7 +69,13 @@ public class KeePassController {
     @FXML
     TextArea notesArea;
     @FXML
-    ListView<KeePassAttachment> attributesList;
+    ListView<KeePassAttachment> attachmentList;
+    @FXML
+    TableView<Pair<String, String>> attributesTable;
+    @FXML
+    TableColumn<Pair<String, String>, String> attrNameColumn;
+    @FXML
+    TableColumn<Pair<String, String>, String> attrValueColumn;
     @FXML
     TextField passwordField;
     @FXML
@@ -68,6 +90,8 @@ public class KeePassController {
     private String username;
     private String password;
     private AtomicBoolean isModified = new AtomicBoolean();
+    private List<String> recentFiles = new ArrayList<>();
+    private AppPrefs appPrefs;
 
     public void setRoot(TreeItem<JaxbGroupBinding> rootGroup, Map<UUID, ImageView> iconsMap, KeePassFile keePassFile) {
         this.rootGroup = rootGroup;
@@ -89,6 +113,8 @@ public class KeePassController {
                                 if (iconView != null) {
                                     setGraphic(iconView);
                                     System.out.printf("Set %s icon to: %s\n", item.getName(), item.getCustomIconUUID());
+                                } else {
+                                    System.out.printf("No icon for: %s\n", item.getName());
                                 }
                             }
                         }
@@ -109,12 +135,34 @@ public class KeePassController {
                 .selectedItemProperty()
                 .addListener((observable, oldValue, newValue) -> entrySelected(newValue));
         extractMenuItem.disableProperty().bind(hasAttachments.not());
+        attrNameColumn.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue().getKey()));
+        attrValueColumn.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue().getValue()));
+        rootGroup.setExpanded(true);
     }
 
+    public void addRecentFile(String kdbxFile) {
+        recentFiles.add(kdbxFile);
+        appPrefs.getRecentFiles().add(kdbxFile);
+        try {
+            JsonDBTemplate dbTemplate = PrefsUtils.getPreferences(AppPrefs.class);
+            dbTemplate.upsert(appPrefs);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("AppPrefs", "Failed to update prefs", e);
+        }
+    }
 
     @FXML
     private void initialize() {
         System.out.printf("KeePassController.initialize\n");
+        menuBar.setUseSystemMenuBar(true);
+        recentFilesMenu.setOnShowing(this::showingRecentFiles);
+        try {
+            JsonDBTemplate dbTemplate = PrefsUtils.getPreferences(AppPrefs.class);
+            appPrefs = dbTemplate.findById("KeePassJava2Prefs", AppPrefs.class);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("AppPrefs", "Failed to load AppPrefs", e);
+            appPrefs = new AppPrefs();
+        }
     }
 
     private void groupSelected(JaxbGroupBinding group) {
@@ -155,12 +203,38 @@ public class KeePassController {
             passwordField.setText(entry.getPassword());
             List<KeePassAttachment> attachments = entry.getAttachments();
             if(attachments.size() > 0) {
-                attributesList.getItems().clear();
-                attributesList.getItems().addAll(attachments);
+                attachmentList.getItems().clear();
+                attachmentList.getItems().addAll(attachments);
                 hasAttachments.set(true);
                 System.out.printf("Extract should be enabled\n");
+            } else {
+                attachmentList.getItems().clear();
             }
+            Set<String> attrNames = entry.getAttributes();
+            List<Pair<String,String>> tmp = new ArrayList<>();
+            for(String name : attrNames) {
+                String value = entry.getAttributeValue(name);
+                Pair<String,String> pair = new Pair<>(name, value);
+                tmp.add(pair);
+            }
+            ObservableList<Pair<String,String>> attrValues = FXCollections.observableArrayList(tmp);
+            attributesTable.setItems(attrValues);
         }
+    }
+
+    @FXML
+    private void showingRecentFiles(Event event) {
+        System.out.println(event);
+        recentFilesMenu.getItems().clear();
+        for(String f : recentFiles) {
+            MenuItem menuItem = new MenuItem(f);
+            recentFilesMenu.getItems().add(menuItem);
+        }
+    }
+
+    @FXML
+    private void fileOpenRecent() {
+
     }
 
     @FXML
@@ -200,10 +274,18 @@ public class KeePassController {
             System.out.printf("copyUsername, %s\n", value);
         }
     }
+    @FXML
+    private void entryEdit() {
+        Dialogs.showWarning("Entry->Edit", "Entry-Edit is not implemented yet");
+    }
+    @FXML
+    private void entryDelete() {
+        Dialogs.showWarning("Entry->Delete", "Entry-Delete is not implemented yet");
+    }
 
     @FXML
     private void extractAttachment() {
-        KeePassAttachment attachment = attributesList.getSelectionModel().getSelectedItem();
+        KeePassAttachment attachment = attachmentList.getSelectionModel().getSelectedItem();
         if(attachment != null) {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setInitialFileName(attachment.getName());
@@ -218,6 +300,16 @@ public class KeePassController {
                 }
             }
         }
+    }
+
+    @FXML
+    private void searchKeyPress(KeyEvent keyTyped) {
+        String typed = keyTyped.getCharacter();
+        System.out.printf("searchKeyPress, typed=%s, src=%s\n", typed, keyTyped.getSource());
+    }
+    @FXML
+    private void searchAction() {
+        System.out.printf("searchAction clicked\n");
     }
 
     @FXML

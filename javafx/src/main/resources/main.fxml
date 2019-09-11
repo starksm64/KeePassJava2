@@ -8,6 +8,8 @@
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SeparatorMenuItem?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
@@ -26,14 +28,17 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/8.0.211" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
    <top>
       <VBox prefHeight="64.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
-            <MenuBar>
+            <MenuBar fx:id="menuBar">
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
+                        <MenuItem mnemonicParsing="false" text="Open..." />
+                        <Menu fx:id="recentFilesMenu" mnemonicParsing="false" text="Open Recent" />
+                        <SeparatorMenuItem mnemonicParsing="false" />
                     <MenuItem mnemonicParsing="false" onAction="#fileQuit" text="Quit">
                            <accelerator>
                               <KeyCodeCombination alt="UP" code="Q" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
@@ -57,7 +62,7 @@
                            </accelerator>
                         </MenuItem>
                         <MenuItem mnemonicParsing="false" text="Icon..." />
-                    <MenuItem mnemonicParsing="false" text="Delete" />
+                    <MenuItem mnemonicParsing="false" onAction="#entryDelete" text="Delete" />
                         <MenuItem fx:id="extractMenuItem" mnemonicParsing="false" onAction="#extractAttachment" text="Extract Attachment" />
                   </items>
                 </Menu>
@@ -68,50 +73,94 @@
                 </Menu>
               </menus>
             </MenuBar>
-            <ButtonBar prefHeight="40.0" prefWidth="200.0">
-              <buttons>
-                  <ImageView>
+            <GridPane>
+               <columnConstraints>
+                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="48.0" />
+                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+               </columnConstraints>
+               <rowConstraints>
+                  <RowConstraints minHeight="10.0" vgrow="SOMETIMES" />
+               </rowConstraints>
+               <children>
+                  <ButtonBar prefHeight="40.0" prefWidth="200.0" GridPane.columnIndex="2">
+                    <buttons>
+                        <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#entryEdit" text="Edit">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/keys-edit.gificons/keys-edit.gif" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
+                        <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#fileSave" text="Save">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/keys-save.gificons/keys-save.gif" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
+                        <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#entryDelete" text="Delete">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/keys-delete.gificons/keys-delete.gif" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
+                        <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#copyPassword" text="Password">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/Padlock.pngicons/Padlock.png" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
+                        <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#copyUsername" text="Username">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/username.pngicons/username.png" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
+                    </buttons>
+                  </ButtonBar>
+                  <ImageView fitHeight="150.0" fitWidth="200.0" pickOnBounds="true" preserveRatio="true">
                      <image>
-                        <Image url="@icons/keys-save.gif" />
+                        <Image url="@icons/edit-find.pngicons/edit-find.png" />
                      </image>
                   </ImageView>
-                  <ImageView>
-                     <image>
-                        <Image url="@icons/keys-delete.gif" />
-                     </image>
-                  </ImageView>
-                  <ImageView>
-                     <image>
-                        <Image url="@icons/keys-edit.gif" />
-                     </image>
-                  </ImageView>
-                  <ImageView accessibleText="Password">
-                     <image>
-                        <Image url="@icons/Padlock.png" />
-                     </image>
-                  </ImageView>
-                  <ImageView accessibleText="Username">
-                     <image>
-                        <Image url="@icons/username.png" />
-                     </image>
-                  </ImageView>
-              </buttons>
-            </ButtonBar>
+                  <TextField onAction="#searchAction" onKeyTyped="#searchKeyPress" promptText="Search..." GridPane.columnIndex="1">
+                     <font>
+                        <Font size="14.0" />
+                     </font>
+                  </TextField>
+               </children>
+            </GridPane>
          </children>
       </VBox>
    </top>
-   <left>
-      <TreeView fx:id="groupTreeView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER" />
-   </left>
    <center>
-      <TableView fx:id="entryTableView" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-        <columns>
-            <TableColumn fx:id="imageColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" text="Icon" />
-          <TableColumn fx:id="titleColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="150.0" text="Title" />
-          <TableColumn fx:id="usernameColumn" maxWidth="1.7976931348623157E308" minWidth="100.0" prefWidth="150.0" text="Username" />
-            <TableColumn fx:id="urlColumn" maxWidth="1.7976931348623157E308" minWidth="250.0" prefWidth="-1.0" text="URL" />
-        </columns>
-      </TableView>
+      <SplitPane dividerPositions="0.22044728434504793" BorderPane.alignment="CENTER">
+         <items>
+            <TreeView fx:id="groupTreeView" prefHeight="200.0" prefWidth="200.0" />
+            <TableView fx:id="entryTableView" prefHeight="200.0" prefWidth="200.0">
+              <columns>
+                  <TableColumn fx:id="imageColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" text="Icon" />
+                <TableColumn fx:id="titleColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="150.0" text="Title" />
+                <TableColumn fx:id="usernameColumn" maxWidth="1.7976931348623157E308" minWidth="100.0" prefWidth="150.0" text="Username" />
+                  <TableColumn fx:id="urlColumn" maxWidth="1.7976931348623157E308" minWidth="250.0" prefWidth="-1.0" text="URL" />
+              </columns>
+            </TableView>
+         </items>
+      </SplitPane>
    </center>
    <bottom>
       <TabPane prefHeight="200.0" prefWidth="200.0" tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
@@ -132,17 +181,17 @@
             <content>
                   <ScrollPane>
                      <content>
-                        <ListView fx:id="attributesList" maxWidth="1.7976931348623157E308" minWidth="-Infinity" prefHeight="400.0" prefWidth="922.0" />
+                        <ListView fx:id="attachmentList" maxWidth="1.7976931348623157E308" minWidth="-Infinity" prefHeight="400.0" prefWidth="922.0" />
                      </content>
                   </ScrollPane>
             </content>
           </Tab>
           <Tab text="Attributes">
             <content>
-                  <TableView prefHeight="200.0" prefWidth="200.0">
+                  <TableView fx:id="attributesTable" prefHeight="200.0" prefWidth="200.0">
                     <columns>
-                      <TableColumn prefWidth="75.0" text="Name" />
-                      <TableColumn prefWidth="75.0" text="Value" />
+                      <TableColumn fx:id="attrNameColumn" prefWidth="75.0" text="Name" />
+                      <TableColumn fx:id="attrValueColumn" prefWidth="75.0" text="Value" />
                     </columns>
                   </TableView>
             </content>

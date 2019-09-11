@@ -33,6 +33,7 @@ import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 
+@Deprecated
 public class KeePassFX extends Application {
     public static void main(String[] args) {
         launch(args);

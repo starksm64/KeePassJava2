@@ -11,6 +11,7 @@ import java.util.UUID;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
@@ -41,6 +42,11 @@ public class KeePassEntry {
     public String getNotes() {
         return getField("Notes");
     }
+
+    /**
+     * These are the fields other than the well known ones
+     * @return
+     */
     public Set<String> getAttributes() {
         HashSet<String> names = new HashSet<>();
         for(StringField field : binding.getString()) {
@@ -54,6 +60,9 @@ public class KeePassEntry {
         names.remove("Expires");
         names.remove("Notes");
         return names;
+    }
+    public String getAttributeValue(String name) {
+        return getField(name);
     }
 
     public List<KeePassAttachment> getAttachments() {
