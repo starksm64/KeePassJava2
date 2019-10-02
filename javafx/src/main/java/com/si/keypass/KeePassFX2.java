@@ -5,16 +5,19 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -81,6 +84,7 @@ public class KeePassFX2 extends Application {
             controller.setRoot(rootGroup, iconsMap, keePassFile);
             System.out.printf("root=%s, controller=%s\n", root, controller);
             Scene scene = new Scene(root);
+            scene.focusOwnerProperty().addListener((obs, old, nv) -> {System.out.printf("focus(%s), %s to %s\n", obs, old, nv); controller.setFocusNode(nv);});
             primaryStage.setScene(scene);
             primaryStage.show();
         }
@@ -114,16 +118,19 @@ public class KeePassFX2 extends Application {
         fileChooser.setTitle("Select Password File");
         File selectedFile = fileChooser.showOpenDialog(null);
         if(selectedFile != null) {
-            try {
-                FileReader reader = new FileReader(selectedFile);
-                BufferedReader br = new BufferedReader(reader);
-                String pass = br.readLine();
-                pass = pass + pass;
-                br.close();
-                passwordField.setText(pass);
-            } catch (IOException e) {
-                Dialogs.showExceptionAlert("Password from File Error", selectedFile.getAbsolutePath(), e);
-            }
+            loadPasswordFromFile(selectedFile);
+        }
+    }
+    private void loadPasswordFromFile(File selectedFile) {
+        try {
+            FileReader reader = new FileReader(selectedFile);
+            BufferedReader br = new BufferedReader(reader);
+            String pass = br.readLine();
+            pass = pass + pass;
+            br.close();
+            passwordField.setText(pass);
+        } catch (IOException e) {
+            Dialogs.showExceptionAlert("Password from File Error", selectedFile.getAbsolutePath(), e);
         }
     }
 
@@ -220,12 +227,14 @@ public class KeePassFX2 extends Application {
         loadDbStage.toBack();
         loadDbStage = null;
 
-
         JaxbGroupBinding empty = new JaxbGroupBinding();
         empty.setName("Empty");
         TreeItem<JaxbGroupBinding> rootItem = new TreeItem<>(empty);
         // get an input stream from KDB file
         String kdbxFile =  dbFileField.getText();
+        if(kdbxFile == null || kdbxFile.length() == 0) {
+            kdbxFile = loadDefault();
+        }
         if(kdbxFile != null) {
             FileInputStream kdbxIS = new FileInputStream(kdbxFile);
             Credentials credentials = createCredentials();
@@ -268,6 +277,53 @@ public class KeePassFX2 extends Application {
 
         return rootItem;
     }
+    private String loadDefault() {
+        String dbFile = null;
+        // Try the three different roots...
+        String[] roots = {"/home/starksm/Applications/kp/", "/media/starksm/Samsung USB/", "/Users/starksm/private/"};
+        for(String rootDir : roots) {
+            // Look for a default.map file
+            File defaultMap = new File(rootDir, "default.map");
+            if (defaultMap.canRead()) {
+                System.out.printf("Loading defaults from: %s\n", defaultMap.getAbsolutePath());
+                String[] files = readDefaultMap(defaultMap);
+                System.out.printf("Read default files: %s\n", Arrays.asList(files));
+                if(files == null) {
+                    Dialogs.showWarning("Failed to load defaults", "No default.map found");
+                    return null;
+                }
+                loadPasswordFromFile(new File(rootDir, files[0]));
+                StringBuilder tmp = new StringBuilder();
+                for (int n = 1; n < files.length; n ++) {
+                    String f = files[n];
+                    tmp.append(rootDir + f);
+                    tmp.append(',');
+                }
+                tmp.setLength(tmp.length() - 1);
+                keyFileField.setText(tmp.toString());
+                dbFile = rootDir + "SIKeyPass.kdbx";
+                break;
+            }
+        }
+        return dbFile;
+    }
+
+    /**
+     * Read a default.map file to determine the default pass file, etc.
+     * @param defaultMap - default.map file to load
+     * @return the file names for the defaults if found, null otherwise
+     */
+    private String[] readDefaultMap(File defaultMap) {
+        try(BufferedReader reader = new BufferedReader(new FileReader(defaultMap))) {
+            List<String> tmp = reader.lines().collect(Collectors.toList());
+            String[] lines = new String[tmp.size()];
+            tmp.toArray(lines);
+            return lines;
+        } catch (IOException e) {
+            Dialogs.showExceptionAlert("DefaultMap Failure", "Failed to read: "+defaultMap.getAbsolutePath(), e);
+        }
+        return null;
+    }
 
     private TreeItem<JaxbGroupBinding> toTreeItem(JaxbGroupBinding group, Map<UUID, ImageView> iconsMap) {
         TreeItem<JaxbGroupBinding> groupItem = new TreeItem<>(group);
@@ -288,6 +344,7 @@ public class KeePassFX2 extends Application {
         System.out.printf("KdbxCreds: %s\n", Helpers.encodeBase64Content(creds.getKey()));
         credentials.addKey(creds);
         String[] keyFiles = keyFileField.getText().split(",");
+        System.out.printf("keyFileField: %s\n", keyFileField.getText());
         byte[] tmp = new byte[4096];
         for(String keyFile : keyFiles) {
             System.out.printf("Reading: %s\n", keyFile);

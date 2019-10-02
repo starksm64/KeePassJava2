@@ -28,9 +28,9 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/10.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/8.0.211" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
    <top>
-      <VBox prefHeight="64.0" prefWidth="600.0" BorderPane.alignment="CENTER">
+      <VBox prefHeight="100.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
             <MenuBar fx:id="menuBar">
               <menus>
@@ -45,6 +45,16 @@
                            </accelerator></MenuItem>
                   </items>
                 </Menu>
+                  <Menu mnemonicParsing="false" text="Edit">
+                    <items>
+                      <MenuItem mnemonicParsing="false" onAction="#editCopy" text="Copy">
+                           <accelerator>
+                              <KeyCodeCombination alt="UP" code="C" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
+                           </accelerator>
+                        </MenuItem>
+                        <MenuItem mnemonicParsing="false" text="Paste" />
+                    </items>
+                  </Menu>
                 <Menu mnemonicParsing="false" text="Entry">
                   <items>
                         <MenuItem mnemonicParsing="false" onAction="#copyUsername" text="Copy Username">
@@ -85,11 +95,20 @@
                <children>
                   <ButtonBar prefHeight="40.0" prefWidth="200.0" GridPane.columnIndex="2">
                     <buttons>
+                        <Button alignment="CENTER" contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" text="Search">
+                           <graphic>
+                              <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@icons/edit-find.png" />
+                                 </image>
+                              </ImageView>
+                           </graphic>
+                        </Button>
                         <Button contentDisplay="GRAPHIC_ONLY" mnemonicParsing="false" onAction="#entryEdit" text="Edit">
                            <graphic>
                               <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@icons/keys-edit.gificons/keys-edit.gif" />
+                                    <Image url="@icons/keys-edit.jpg" />
                                  </image>
                               </ImageView>
                            </graphic>
@@ -98,7 +117,7 @@
                            <graphic>
                               <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@icons/keys-save.gificons/keys-save.gif" />
+                                    <Image url="@icons/keys-save.gif" />
                                  </image>
                               </ImageView>
                            </graphic>
@@ -107,7 +126,7 @@
                            <graphic>
                               <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@icons/keys-delete.gificons/keys-delete.gif" />
+                                    <Image url="@icons/keys-delete.jpg" />
                                  </image>
                               </ImageView>
                            </graphic>
@@ -116,7 +135,7 @@
                            <graphic>
                               <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@icons/Padlock.pngicons/Padlock.png" />
+                                    <Image url="@icons/Padlock.png" />
                                  </image>
                               </ImageView>
                            </graphic>
@@ -125,18 +144,13 @@
                            <graphic>
                               <ImageView fitHeight="64.0" fitWidth="64.0" pickOnBounds="true" preserveRatio="true">
                                  <image>
-                                    <Image url="@icons/username.pngicons/username.png" />
+                                    <Image url="@icons/username.png" />
                                  </image>
                               </ImageView>
                            </graphic>
                         </Button>
                     </buttons>
                   </ButtonBar>
-                  <ImageView fitHeight="150.0" fitWidth="200.0" pickOnBounds="true" preserveRatio="true">
-                     <image>
-                        <Image url="@icons/edit-find.pngicons/edit-find.png" />
-                     </image>
-                  </ImageView>
                   <TextField onAction="#searchAction" onKeyTyped="#searchKeyPress" promptText="Search..." GridPane.columnIndex="1">
                      <font>
                         <Font size="14.0" />
@@ -188,7 +202,7 @@
           </Tab>
           <Tab text="Attributes">
             <content>
-                  <TableView fx:id="attributesTable" prefHeight="200.0" prefWidth="200.0">
+                  <TableView fx:id="attributesTable" onContextMenuRequested="#showContextMenu" prefHeight="200.0" prefWidth="200.0">
                     <columns>
                       <TableColumn fx:id="attrNameColumn" prefWidth="75.0" text="Name" />
                       <TableColumn fx:id="attrValueColumn" prefWidth="75.0" text="Value" />

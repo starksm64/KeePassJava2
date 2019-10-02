@@ -68,7 +68,8 @@ public class JaxbSerializableDatabaseTest {
     @Test
     public void testReadDBXWithPassAndKeyfile() throws Exception {
         // get an input stream from KDB file
-        String rootDir = "/Users/starksm/Google Drive/Private/";
+        //String rootDir = "/Users/starksm/Google Drive/Private/";
+        String rootDir = "/media/starksm/Samsung USB/";
         // A test dbx with a password of KeyPass.kdbx
         String kdbxFile = "SIKeyPass.kdbx";
         FileInputStream kdbxIS = new FileInputStream(rootDir+kdbxFile);

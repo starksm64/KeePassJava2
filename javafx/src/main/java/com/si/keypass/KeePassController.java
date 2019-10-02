@@ -21,6 +21,7 @@ import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -29,6 +30,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -37,6 +39,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
 import javafx.util.Callback;
 import javafx.util.Pair;
@@ -84,6 +87,7 @@ public class KeePassController {
     MenuItem extractMenuItem;
     private SimpleBooleanProperty hasAttachments = new SimpleBooleanProperty();
 
+    private Node focusNode;
     private TreeItem<JaxbGroupBinding> rootGroup;
     private Map<UUID, javafx.scene.image.ImageView> iconsMap;
     private KeePassFile keePassFile;
@@ -151,6 +155,9 @@ public class KeePassController {
         }
     }
 
+    public void setFocusNode(Node focusNode) {
+        this.focusNode = focusNode;
+    }
     @FXML
     private void initialize() {
         System.out.printf("KeePassController.initialize\n");
@@ -238,6 +245,40 @@ public class KeePassController {
     }
 
     @FXML
+    private void editCopy() {
+        if(focusNode != null) {
+            if(focusNode instanceof TextInputControl) {
+                TextInputControl tf = (TextInputControl) focusNode;
+                tf.copy();
+            }
+            else if(focusNode instanceof TableView) {
+                TableView tv = (TableView) focusNode;
+                Object selected = tv.getSelectionModel().getSelectedItem();
+                System.out.printf("TableView.selected: %s\n", selected.getClass());
+                if(selected instanceof Pair) {
+                    Pair<String, String> p = (Pair<String, String>) selected;
+                    if(p.getValue() != null && p.getValue().length() > 0) {
+                        final ClipboardContent content = new ClipboardContent();
+                        content.putString(p.getValue());
+                        Clipboard.getSystemClipboard().setContent(content);
+                    }
+                }
+            }
+            else if(focusNode instanceof ListView) {
+                ListView lv = (ListView) focusNode;
+                Object selected = lv.getSelectionModel().getSelectedItem();
+                System.out.printf("ListView.selected: %s\n", selected.getClass());
+            }
+            else {
+                System.err.printf("Don't know how to copy type: %s\n", focusNode);
+            }
+        }
+    }
+    @FXML
+    private void editPaste() {
+
+    }
+    @FXML
     private void copyPassword() {
         KeePassEntry selected = entryTableView.getSelectionModel().getSelectedItem();
         if(selected != null) {
@@ -246,7 +287,7 @@ public class KeePassController {
             final ClipboardContent content = new ClipboardContent();
             content.putString(value);
             clipboard.setContent(content);
-            System.out.printf("copyUsername, %s\n", value);
+            System.out.printf("copyPassword, %s\n", value);
         }
     }
     @FXML
@@ -339,5 +380,13 @@ public class KeePassController {
             OutputStream outputStream = KdbxSerializer.createEncryptedOutputStream(credentials, new KdbxHeader(), testStream);
             JaxbSerializableDatabase db = new JaxbSerializableDatabase();
         }
+    }
+    @FXML
+    private void showContextMenu(EventHandler<MouseEvent> event) {
+        System.out.printf("showContextMenu#2, %s", event);
+    }
+    @FXML
+    private void showContextMenu(MouseEvent event) {
+        System.out.printf("showContextMenu, %s", event);
     }
 }
