@@ -13,12 +13,13 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import org.jetbrains.annotations.NotNull;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 
-public class KeePassEntry {
+public class KeePassEntry implements Comparable<KeePassEntry> {
     JaxbEntryBinding binding;
     JaxbGroupBinding group;
     Map<UUID, ImageView> iconsMap = new HashMap<>();
@@ -111,6 +112,13 @@ public class KeePassEntry {
             }
         }
         return new ReadOnlyStringWrapper(title);
+    }
+
+    @Override
+    public int compareTo(@NotNull KeePassEntry o) {
+        String myTitle = getTitle().getValue();
+        String oTitle = o.getTitle().getValue();
+        return myTitle.compareTo(oTitle);
     }
 
     @Override

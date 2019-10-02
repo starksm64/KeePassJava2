@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.si.keypass.prefs.PrefsUtils;
+import io.jsondb.JsonDBTemplate;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -71,9 +73,11 @@ public class KeePassFX2 extends Application {
     boolean loadCancelled;
     Stage loadDbStage;
     private KeePassController controller;
+    private AppPrefs appPrefs;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
+        System.out.printf("KeyPassFX2.start...\n");
 
         URL fxml = getClass().getResource("/main.fxml");
         FXMLLoader loader = new FXMLLoader(fxml);
@@ -93,6 +97,13 @@ public class KeePassFX2 extends Application {
     @FXML
     private void initialize() {
         System.out.printf("KeePassFX2.initialize\n");
+        try {
+            JsonDBTemplate dbTemplate = PrefsUtils.getPreferences(AppPrefs.class);
+            appPrefs = dbTemplate.findById("KeePassJava2Prefs", AppPrefs.class);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("AppPrefs", "Failed to load AppPrefs", e);
+            appPrefs = new AppPrefs();
+        }
     }
 
     @FXML
@@ -136,9 +147,10 @@ public class KeePassFX2 extends Application {
 
     private void loadPasswordFromYubikey() {
         ProcessBuilder pb = new ProcessBuilder();
+        pb.environment().put("LD_LIBRARY_PATH", "/usr/local/lib");
         ArrayList<String> command = new ArrayList<>();
 
-        command.add(pivToolPath);
+        command.add(appPrefs.getYubitoolPath());
         command.add("-a");
         command.add("read-object");
         command.add("--id");

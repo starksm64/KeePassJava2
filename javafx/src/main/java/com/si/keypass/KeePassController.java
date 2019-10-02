@@ -149,8 +149,13 @@ public class KeePassController {
     }
 
     public void addRecentFile(String kdbxFile) {
-        recentFiles.add(kdbxFile);
-        appPrefs.getRecentFiles().add(kdbxFile);
+        if(!recentFiles.contains(kdbxFile)) {
+            recentFiles.add(kdbxFile);
+            if(!appPrefs.getRecentFiles().contains(kdbxFile)) {
+                appPrefs.getRecentFiles().add(kdbxFile);
+            }
+        }
+
         try {
             JsonDBTemplate dbTemplate = PrefsUtils.getPreferences(AppPrefs.class);
             dbTemplate.upsert(appPrefs);
