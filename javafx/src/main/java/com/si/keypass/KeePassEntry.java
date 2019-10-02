@@ -113,6 +113,17 @@ public class KeePassEntry {
         return new ReadOnlyStringWrapper(title);
     }
 
+    @Override
+    public int hashCode() {
+        return getTitle().getValue().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        KeePassEntry entry = (KeePassEntry) obj;
+        return getTitle().getValue().equals(entry.getName().getValue());
+    }
+
     public String toString() {
         StringBuilder tmp = new StringBuilder("KeePassEntry: "+getTitle());
         tmp.append("\ntags: ");

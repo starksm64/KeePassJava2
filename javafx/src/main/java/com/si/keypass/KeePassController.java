@@ -5,17 +5,20 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import com.si.keypass.prefs.PrefsUtils;
 import io.jsondb.JsonDBTemplate;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
@@ -50,6 +53,7 @@ import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
+import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 
 public class KeePassController {
     @FXML
@@ -346,7 +350,24 @@ public class KeePassController {
     @FXML
     private void searchKeyPress(KeyEvent keyTyped) {
         String typed = keyTyped.getCharacter();
-        System.out.printf("searchKeyPress, typed=%s, src=%s\n", typed, keyTyped.getSource());
+        TextField searchField = (TextField) keyTyped.getSource();
+        String text = searchField.getText();
+        System.out.printf("searchKeyPress, typed=%s, src=%s\n", typed, text);
+        List<JaxbGroupBinding> groups = this.keePassFile.getRoot().getGroup().getGroup();
+        HashSet<KeePassEntry> matches = new HashSet<>();
+        for(JaxbGroupBinding group : groups) {
+            List<JaxbEntryBinding> bindings = group.getEntry();
+            for(JaxbEntryBinding binding : bindings) {
+                List<StringField> fields = binding.getString();
+                for(StringField field : fields) {
+                    if(field.getValue().getValue().contains(text)) {
+                        matches.add(new KeePassEntry(group, binding, iconsMap));
+                    }
+                }
+            }
+        }
+        List<ObservableValue<String>> names = matches.stream().map(KeePassEntry::getTitle).collect(Collectors.toList());
+        System.out.printf("matches(%d): %s\n", names.size(), names);
     }
     @FXML
     private void searchAction() {
