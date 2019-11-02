@@ -44,6 +44,11 @@
             <artifactId>jsondb-core</artifactId>
             <version>1.0.85</version>
         </dependency>
+        <dependency>
+            <groupId>org.passay</groupId>
+            <artifactId>passay</artifactId>
+            <version>1.4.0</version>
+        </dependency>
     </dependencies>
 
 </project>
