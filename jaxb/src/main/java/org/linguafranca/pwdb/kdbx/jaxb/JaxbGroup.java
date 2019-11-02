@@ -201,6 +201,13 @@ public class JaxbGroup extends AbstractGroup<JaxbDatabase, JaxbGroup, JaxbEntry,
     public void setIcon(JaxbIcon icon) {
         this.delegate.setIconID(icon.getIndex());
     }
+    public UUID getCustomIconUUID() {
+        return delegate.getCustomIconUUID();
+    }
+
+    public void setCustomIconUUID(UUID customIconUUID) {
+        delegate.setCustomIconUUID(customIconUUID);
+    }
 
     @NotNull
     @Override

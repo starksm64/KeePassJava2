@@ -223,6 +223,9 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
         return new JaxbGroup(database, ((JaxbGroupBinding) delegate.parent));
     }
 
+    public String getTags() {
+        return delegate.getTags();
+    }
     @Override
     public @NotNull UUID getUuid() {
         return delegate.getUUID();
@@ -238,7 +241,13 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
         delegate.setIconID(icon.getIndex());
         touch();
     }
+    public UUID getCustomIconUUID() {
+        return delegate.getCustomIconUUID();
+    }
 
+    public void setCustomIconUUID(UUID customIconUUID) {
+        delegate.setCustomIconUUID(customIconUUID);
+    }
     @Override
     public Date getLastAccessTime() {
         return delegate.getTimes().getLastAccessTime();
@@ -248,7 +257,9 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
     public Date getCreationTime() {
         return delegate.getTimes().getCreationTime();
     }
-
+    public Times getTimes() {
+        return delegate.getTimes();
+    }
     @Override
     public boolean getExpires() {
         return delegate.getTimes().getExpires();
