@@ -28,7 +28,11 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
+<?import java.net.URL?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/8.0.211" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
+    <stylesheets>
+        <URL value="@main.css" />
+    </stylesheets>
    <top>
       <VBox prefHeight="100.0" prefWidth="600.0" BorderPane.alignment="CENTER">
          <children>
@@ -38,6 +42,8 @@
                   <items>
                         <MenuItem mnemonicParsing="false" text="Open..." />
                         <Menu fx:id="recentFilesMenu" mnemonicParsing="false" text="Open Recent" />
+                        <MenuItem mnemonicParsing="false" onAction="#fileSave" text="Save" />
+                        <MenuItem mnemonicParsing="false" onAction="#fileSave" text="Save As..." />
                         <SeparatorMenuItem mnemonicParsing="false" />
                     <MenuItem mnemonicParsing="false" onAction="#fileQuit" text="Quit">
                            <accelerator>
@@ -71,14 +77,17 @@
                               <KeyCodeCombination alt="UP" code="L" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
                            </accelerator>
                         </MenuItem>
-                        <MenuItem mnemonicParsing="false" text="Icon..." />
+                        <MenuItem mnemonicParsing="false" onAction="#entryEdit" text="Edit..." />
+                        <MenuItem mnemonicParsing="false" onAction="#entryIcon" text="Icon..." />
                     <MenuItem mnemonicParsing="false" onAction="#entryDelete" text="Delete" />
                         <MenuItem fx:id="extractMenuItem" mnemonicParsing="false" onAction="#extractAttachment" text="Extract Attachment" />
+                        <MenuItem mnemonicParsing="false" onAction="#addAttachment" text="Add Attachment" />
+                        <MenuItem mnemonicParsing="false" onAction="#deleteAttachment" text="Delete Attachment" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                   <items>
-                    <MenuItem mnemonicParsing="false" text="About" />
+                    <MenuItem mnemonicParsing="false" onAction="#helpAbout" text="About" />
                   </items>
                 </Menu>
               </menus>
@@ -185,7 +194,7 @@
                      <content>
                         <TextArea fx:id="notesArea" maxWidth="1.7976931348623157E308" minWidth="500.0" prefHeight="200.0" prefWidth="922.0">
                            <font>
-                              <Font name="Courier New" size="12.0" />
+                              <Font size="14.0" />
                            </font></TextArea>
                      </content>
                   </ScrollPane>
@@ -237,8 +246,8 @@
                         <TextField fx:id="repeatField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                         <HBox prefHeight="100.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="2">
                            <children>
-                              <Button contentDisplay="CENTER" minWidth="-Infinity" mnemonicParsing="false" prefWidth="100.0" text="Save" textAlignment="CENTER" />
-                              <Button contentDisplay="CENTER" minWidth="-Infinity" mnemonicParsing="false" prefWidth="100.0" text="Random" textAlignment="CENTER" />
+                              <Button contentDisplay="CENTER" minWidth="-Infinity" mnemonicParsing="false" onAction="#updatePassword" prefWidth="100.0" text="Save" textAlignment="CENTER" />
+                              <Button contentDisplay="CENTER" minWidth="-Infinity" mnemonicParsing="false" onAction="#randomPassword" prefWidth="100.0" text="Random" textAlignment="CENTER" />
                            </children>
                         </HBox>
                      </children>
