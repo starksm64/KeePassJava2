@@ -1,13 +1,16 @@
 package com.si.keypass;
 
 import java.io.*;
-import java.security.KeyStoreException;
+import java.net.URL;
+import java.rmi.server.ExportException;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,10 +24,17 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -44,16 +54,32 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.Pair;
 import org.linguafranca.pwdb.kdbx.*;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbDatabase;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbEntry;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbGroup;
 import org.linguafranca.pwdb.kdbx.jaxb.JaxbSerializableDatabase;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.Binaries;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
+import org.linguafranca.pwdb.kdbx.jaxb.binding.CustomIcons;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
+import org.passay.CharacterRule;
+import org.passay.EnglishCharacterData;
+import org.passay.PasswordGenerator;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
+
+import static com.si.keypass.Dialogs.IGNORE_TYPE;
+import static com.si.keypass.Dialogs.SAVE_TYPE;
 
 public class KeePassController {
     @FXML
@@ -61,7 +87,7 @@ public class KeePassController {
     @FXML
     Menu recentFilesMenu;
     @FXML
-    TreeView<JaxbGroupBinding> groupTreeView;
+    TreeView<JaxbGroup> groupTreeView;
     @FXML
     TableView<KeePassEntry> entryTableView;
 
@@ -89,56 +115,44 @@ public class KeePassController {
     TextField repeatField;
     @FXML
     MenuItem extractMenuItem;
+    @FXML
+    TextArea editArea;
     private SimpleBooleanProperty hasAttachments = new SimpleBooleanProperty();
 
     private Node focusNode;
-    private TreeItem<JaxbGroupBinding> rootGroup;
+    private JaxbDatabase keyPassDB;
+    private TreeItem<JaxbGroup> rootGroup;
     private Map<UUID, javafx.scene.image.ImageView> iconsMap;
-    private KeePassFile keePassFile;
+    private List<CustomIcons.Icon> icons;
+    // Backup of the db file created on open
+    private File keePassFileBackup;
+    private CompositeKey credentials;
+    private KeePassEntry selectedEntry;
     private String username;
     private String password;
     private AtomicBoolean isModified = new AtomicBoolean();
     private List<String> recentFiles = new ArrayList<>();
     private AppPrefs appPrefs;
+    private boolean editCancelled;
 
-    public void setRoot(TreeItem<JaxbGroupBinding> rootGroup, Map<UUID, ImageView> iconsMap, KeePassFile keePassFile) {
+    public void setRoot(JaxbDatabase keyPassDB, TreeItem<JaxbGroup> rootGroup, Map<UUID, ImageView> iconsMap,
+                        List<CustomIcons.Icon> icons, CompositeKey credentials) {
+        this.keyPassDB = keyPassDB;
         this.rootGroup = rootGroup;
         this.iconsMap = iconsMap;
-        this.keePassFile = keePassFile;
+        this.icons = icons;
+        this.credentials = credentials;
         groupTreeView.setRoot(rootGroup);
-        groupTreeView.setCellFactory(new Callback<TreeView<JaxbGroupBinding>, TreeCell<JaxbGroupBinding>>(){
-            @Override
-            public TreeCell<JaxbGroupBinding> call(TreeView<JaxbGroupBinding> p) {
-                return new TreeCell<JaxbGroupBinding>() {
-                    @Override
-                    protected void updateItem(JaxbGroupBinding item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if(item != null) {
-                            setText(item.getName());
-                            UUID uuid = item.getCustomIconUUID();
-                            if(uuid != null) {
-                                javafx.scene.image.ImageView iconView = iconsMap.get(uuid);
-                                if (iconView != null) {
-                                    setGraphic(iconView);
-                                    System.out.printf("Set %s icon to: %s\n", item.getName(), item.getCustomIconUUID());
-                                } else {
-                                    System.out.printf("No icon for: %s\n", item.getName());
-                                }
-                            }
-                        }
-                    }
-                };
-            }
-        });
+        groupTreeView.setCellFactory((x) -> new JaxbGroupTreeCell(iconsMap));
         groupTreeView.getSelectionModel()
                 .selectedItemProperty()
                 .addListener((observable, oldValue, newValue) -> groupSelected(newValue.getValue()));
 
         entryTableView.setItems(FXCollections.observableArrayList());
         imageColumn.setCellValueFactory(cdf -> cdf.getValue().getIcon());
-        titleColumn.setCellValueFactory(cdf -> cdf.getValue().getTitle());
-        usernameColumn.setCellValueFactory(cdf -> cdf.getValue().getName());
-        urlColumn.setCellValueFactory(cdf -> cdf.getValue().getURLValue());
+        titleColumn.setCellValueFactory(cdf -> cdf.getValue().titleProperty());
+        usernameColumn.setCellValueFactory(cdf -> cdf.getValue().nameProperty());
+        urlColumn.setCellValueFactory(cdf -> cdf.getValue().urlProperty());
         entryTableView.getSelectionModel()
                 .selectedItemProperty()
                 .addListener((observable, oldValue, newValue) -> entrySelected(newValue));
@@ -146,6 +160,10 @@ public class KeePassController {
         attrNameColumn.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue().getKey()));
         attrValueColumn.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue().getValue()));
         rootGroup.setExpanded(true);
+    }
+
+    public void setBackupFile(File backup) {
+        this.keePassFileBackup = backup;
     }
 
     public void addRecentFile(String kdbxFile) {
@@ -181,25 +199,14 @@ public class KeePassController {
         }
     }
 
-    private void groupSelected(JaxbGroupBinding group) {
+    private void groupSelected(JaxbGroup group) {
         System.out.printf("groupSelected: %s\n", group.getName());
-        List<JaxbEntryBinding> bindings = group.getEntry();
+        List<JaxbEntry> bindings = group.getEntries();
         ArrayList<KeePassEntry> tmp = new ArrayList<>();
-        for(JaxbEntryBinding binding : bindings) {
+        for(JaxbEntry binding : bindings) {
             KeePassEntry entry = new KeePassEntry(group, binding, iconsMap);
-            for(BinaryField binaryField : binding.getBinary()) {
-                String name = binaryField.getKey();
-                Integer ref = binaryField.getValue().getRef();
-                byte[] data = null;
-                for (Binaries.Binary binary: keePassFile.getMeta().getBinaries().getBinary()){
-                    if (binary.getID().equals(ref)) {
-                        if (binary.getCompressed()) {
-                            data = Helpers.unzipBinaryContent(binary.getValue());
-                        } else {
-                            data = binary.getValue();
-                        }
-                    }
-                }
+            for(String name : binding.getBinaryPropertyNames()) {
+                byte[] data = binding.getBinaryProperty(name);
                 KeePassAttachment attachment = new KeePassAttachment(name, data);
                 entry.getAttachments().add(attachment);
             }
@@ -214,6 +221,7 @@ public class KeePassController {
         hasAttachments.set(false);
         if(entry != null) {
             System.out.printf("entrySelected: %s\n", entry.getTitle());
+            this.selectedEntry = entry;
             String notes = entry.getNotes();
             notesArea.setText(notes);
             passwordField.setText(entry.getPassword());
@@ -238,6 +246,10 @@ public class KeePassController {
         }
     }
 
+    @FXML
+    private void cellEdited(TableColumn.CellEditEvent event) {
+
+    }
     @FXML
     private void showingRecentFiles(Event event) {
         System.out.println(event);
@@ -324,15 +336,159 @@ public class KeePassController {
             System.out.printf("copyUsername, %s\n", value);
         }
     }
+    private static StringField stringField(String key, String value) {
+        StringField field = new StringField();
+        field.setKey(key);
+        StringField.Value svalue = new StringField.Value();
+        svalue.setValue(value);
+        field.setValue(svalue);
+        return field;
+    }
+
+    @FXML
+    private void entryNew() {
+        JaxbEntry jaxbEntry = keyPassDB.newEntry();
+        if(selectedEntry != null) {
+            JaxbGroup group = selectedEntry.getGroup();
+            group.addEntry(jaxbEntry);
+            System.out.printf("Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getName());
+        } else {
+            TreeItem<JaxbGroup> group = groupTreeView.getSelectionModel().getSelectedItem();
+            if(group != null) {
+                group.getValue().addEntry(jaxbEntry);
+                System.out.printf("Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getValue().getName());
+            } else {
+                keyPassDB.deleteEntry(jaxbEntry.getUuid());
+                Dialogs.showWarning("No Group", "No group selected for entry");
+                return;
+            }
+        }
+        // Populate with default values
+        selectedEntry = new KeePassEntry(jaxbEntry.getParent(), jaxbEntry, iconsMap);
+        selectedEntry.setTitle("NewEntryTitle");
+        selectedEntry.setPassword("CHANGEME");
+        selectedEntry.setUsername("CHANGEME");
+        selectedEntry.setNotes("CHANGEME");
+        selectedEntry.setURL("CHANGEME");
+        selectedEntry.addAttribute("PlaceHolderName", "PlaceHolderValue");
+        entryEdit();
+        if(editCancelled) {
+            System.out.printf("Deleting newly created entry: %s\n", jaxbEntry.getUuid());
+            keyPassDB.deleteEntry(jaxbEntry.getUuid());
+        }
+    }
+    /**
+     * Display a JSON view of the object for editing in a text area for now.
+     */
     @FXML
     private void entryEdit() {
-        Dialogs.showWarning("Entry->Edit", "Entry-Edit is not implemented yet");
+        try {
+            editCancelled = false;
+            URL fxml = getClass().getResource("/JsonEditEntry.fxml");
+            FXMLLoader loader = new FXMLLoader(fxml);
+            loader.setController(this);
+            Parent parent = loader.load();
+            Scene scene = new Scene(parent, 600, 300);
+            Stage loadDbStage = new Stage();
+            loadDbStage.initModality(Modality.APPLICATION_MODAL);
+            loadDbStage.setScene(scene);
+            // Write out the template json
+            JaxbEntryBinding entryBinding = selectedEntry.getDelegate();
+            entryBinding.setUUID(UUID.randomUUID());
+            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE, selectedEntry.getTitle()));
+            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES, selectedEntry.getNotes()));
+            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD, selectedEntry.getPassword()));
+            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_URL, selectedEntry.getURL()));
+            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME, selectedEntry.getUsername()));
+
+            JAXBContext jc = JAXBContext.newInstance(JaxbEntryBinding.class);
+            Marshaller marshaller = jc.createMarshaller();
+            marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+            StringWriter writer = new StringWriter();
+            marshaller.marshal(entryBinding, writer);
+            this.editArea.setText(writer.toString());
+            loadDbStage.showAndWait();
+            scene.setCursor(Cursor.WAIT);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("Edit Entry", "Editing failed", e);
+        }
+    }
+    @FXML
+    private void saveEdit(ActionEvent event) {
+        Button button = (Button) event.getSource();
+        Stage stage = (Stage) button.getScene().getWindow();
+        stage.close();
+        try {
+            // Get the updated
+            String updateText = editArea.getText();
+            JAXBContext jc = JAXBContext.newInstance(JaxbEntryBinding.class);
+            Unmarshaller unmarshaller = jc.createUnmarshaller();
+            JaxbEntryBinding updatedBinding = (JaxbEntryBinding) unmarshaller.unmarshal(new StringReader(updateText));
+            selectedEntry.updateDelegate(updatedBinding);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("Save Entry", "Editing failed", e);
+        }
+    }
+    @FXML
+    private void cancelEdit(ActionEvent event) {
+        editCancelled = true;
+        Button button = (Button) event.getSource();
+        Stage stage = (Stage) button.getScene().getWindow();
+        stage.close();
     }
     @FXML
     private void entryDelete() {
         Dialogs.showWarning("Entry->Delete", "Entry-Delete is not implemented yet");
     }
+    @FXML
+    private void entryIcon() {
+        IconGridPane iconGridPane = new IconGridPane();
+        try {
+            UUID iconID = iconGridPane.selectIcon(iconsMap, icons);
+            selectedEntry.setIcon(iconID);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("Select Icon", "", e);
+        }
+    }
 
+    /**
+     * The Save button action that validates that the Password/Repeat fields match and
+     * then updates the selectedEntry password.
+     */
+    @FXML
+    private void updatePassword() {
+        String pass = passwordField.getText();
+        String check = repeatField.getText();
+        if(pass.compareTo(check) == 0) {
+            System.out.printf("updated password for: %s\n", selectedEntry.getTitle());
+            selectedEntry.setPassword(pass);
+        } else {
+            Dialogs.showWarning("SavePassword", "Passwords do not match");
+        }
+    }
+
+    /**
+     * The Random button action that populates the Password field with a random value.
+     */
+    @FXML
+    private void randomPassword() {
+        try {
+            List<CharacterRule> rules = Arrays.asList(
+                    // at least 2 upper-case character
+                    new CharacterRule(EnglishCharacterData.UpperCase, 2),
+                    // at least 2 lower-case character
+                    new CharacterRule(EnglishCharacterData.LowerCase, 2),
+                    // at least one lower-case character
+                    new CharacterRule(MySpecialChars.INSTANCE, 1),
+                    // at least one digit character
+                    new CharacterRule(EnglishCharacterData.Digit, 1));
+            PasswordGenerator generator = new PasswordGenerator();
+            String password = generator.generatePassword(16, rules);
+            passwordField.setText(password);
+        } catch (Exception e) {
+            Dialogs.showExceptionAlert("PasswordGenerator Failure", "Failed to generate random password", e);
+        }
+    }
     @FXML
     private void extractAttachment() {
         KeePassAttachment attachment = attachmentList.getSelectionModel().getSelectedItem();
@@ -351,27 +507,52 @@ public class KeePassController {
             }
         }
     }
-
+    @FXML
+    private void addAttachment() {
+        FileChooser fileChooser = new FileChooser();
+        List<File> files = fileChooser.showOpenMultipleDialog(null);
+        if(files != null) {
+            ArrayList<KeePassAttachment> attachments = new ArrayList<>();
+            for(File file : files) {
+                try(RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+                    byte[] data = new byte[(int)raf.length()];
+                    raf.readFully(data);
+                    KeePassAttachment attachment = new KeePassAttachment(file.getName(), data);
+                    attachments.add(attachment);
+                } catch (IOException e) {
+                    Dialogs.showExceptionAlert("Add Attachment", file.getAbsolutePath(), e);
+                }
+            }
+            selectedEntry.getAttachments().addAll(attachments);
+        }
+    }
+    @FXML
+    private void deleteAttachment() {
+        KeePassAttachment attachment = attachmentList.getSelectionModel().getSelectedItem();
+        if(attachment != null) {
+            selectedEntry.getAttachments().remove(attachment);
+        }
+    }
     @FXML
     private void searchKeyPress(KeyEvent keyTyped) {
         String typed = keyTyped.getCharacter();
         TextField searchField = (TextField) keyTyped.getSource();
         String text = searchField.getText();
         System.out.printf("searchKeyPress, typed=%s, src=%s\n", typed, text);
-        List<JaxbGroupBinding> groups = this.keePassFile.getRoot().getGroup().getGroup();
+        List<JaxbGroup> groups = this.keyPassDB.getRootGroup().getGroups();
         HashSet<KeePassEntry> matches = new HashSet<>();
-        for(JaxbGroupBinding group : groups) {
-            List<JaxbEntryBinding> bindings = group.getEntry();
-            for(JaxbEntryBinding binding : bindings) {
-                List<StringField> fields = binding.getString();
-                for(StringField field : fields) {
-                    if(field.getValue().getValue().contains(text)) {
+        for(JaxbGroup group : groups) {
+           List<JaxbEntry> bindings = group.getEntries();
+            for(JaxbEntry binding : bindings) {
+                for(String name : binding.getPropertyNames()) {
+                    String value = binding.getProperty(name);
+                    if(value.contains(text)) {
                         matches.add(new KeePassEntry(group, binding, iconsMap));
                     }
                 }
             }
         }
-        List<ObservableValue<String>> names = matches.stream().map(KeePassEntry::getTitle).collect(Collectors.toList());
+        List<String> names = matches.stream().map(KeePassEntry::getTitle).collect(Collectors.toList());
         System.out.printf("matches(%d): %s\n", names.size(), names);
     }
     @FXML
@@ -381,30 +562,55 @@ public class KeePassController {
 
     @FXML
     private void fileSave() {
-
+        try {
+            saveChanges();
+        } catch (IOException e) {
+            Dialogs.showExceptionAlert("Failed to save", "", e);
+        }
+    }
+    @FXML
+    private void fileSaveAs() {
     }
     @FXML
     private void fileQuit() {
         // TODO: check for modifications
         if(isModified.get()) {
-
+            Optional<ButtonType> result = Dialogs.showYesNoCancel("Save DB", "DB is");
+            if (result.get() == SAVE_TYPE){
+                fileSave();
+            } else if (result.get() == IGNORE_TYPE) {
+                // ... user chose ignore changes
+            } else {
+                // Cancel the app quit
+                return;
+            }
+        }
+        // Check for a backup file
+        if(keePassFileBackup != null) {
+            Optional<ButtonType> result = Dialogs.showYesNoCancel("Delete backup?", "Should the DB backup be removed?");
+            if(result.isPresent() && result.get() == SAVE_TYPE) {
+                keePassFileBackup.deleteOnExit();
+            }
         }
         Platform.exit();
+    }
+    @FXML
+    private void helpAbout() {
+        StringBuilder info = new StringBuilder();
+        info.append(String.format("FreeMemory: %s\n", Runtime.getRuntime().freeMemory()));
+        info.append("--- SystemProperties:\n");
+        for(String name : System.getProperties().stringPropertyNames()) {
+            info.append(String.format("%s: %s\n", name, System.getProperty(name)));
+        }
+        Dialogs.showInformation("About KeyPassFX", "Runtime information", info.toString());
     }
     private void saveChanges() throws IOException {
         FileChooser fc = new FileChooser();
         File saveFile = fc.showSaveDialog(null);
         if(saveFile != null) {
             OutputStream testStream = new FileOutputStream(saveFile);
-            // Read the password from /tmp/testLoadDB.pass
-            FileReader reader = new FileReader("/tmp/testLoadDB.pass");
-            BufferedReader br = new BufferedReader(reader);
-            String pass = br.readLine();
-            br.close();
-            CompositeKey credentials = new CompositeKey();
-            KdbxCreds creds = new KdbxCreds(pass.getBytes());
-            OutputStream outputStream = KdbxSerializer.createEncryptedOutputStream(credentials, new KdbxHeader(), testStream);
-            JaxbSerializableDatabase db = new JaxbSerializableDatabase();
+            keyPassDB.save(credentials, testStream);
+            System.out.printf("Saved(%d) to: %s\n", saveFile.length(), saveFile.getAbsolutePath());
         }
     }
     @FXML
