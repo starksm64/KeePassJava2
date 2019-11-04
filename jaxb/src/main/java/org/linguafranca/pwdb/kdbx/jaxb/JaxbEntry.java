@@ -23,6 +23,7 @@ import org.linguafranca.pwdb.kdbx.jaxb.binding.*;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,6 +40,21 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
     protected JaxbDatabase database;
     protected JaxbEntryBinding delegate;
 
+    public static boolean isStandardName(String name) {
+        boolean isStandardName = true;
+        switch (name) {
+            case JaxbEntry.STANDARD_PROPERTY_NAME_NOTES:
+            case JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD:
+            case JaxbEntry.STANDARD_PROPERTY_NAME_TITLE:
+            case JaxbEntry.STANDARD_PROPERTY_NAME_URL:
+            case JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME:
+                break;
+            default:
+                isStandardName = false;
+                break;
+        }
+        return isStandardName;
+    }
     public JaxbEntry(JaxbDatabase jaxbDatabase) {
         this.database = jaxbDatabase;
         this.delegate = new JaxbEntryBinding();
@@ -69,6 +85,34 @@ public class JaxbEntry extends AbstractEntry<JaxbDatabase, JaxbGroup, JaxbEntry,
     public JaxbEntry(JaxbDatabase database, JaxbEntryBinding entry) {
         this.database = database;
         this.delegate = entry;
+    }
+
+    public JaxbEntryBinding getDelegate() {
+        return delegate;
+    }
+    public void updateDelegate(JaxbEntryBinding updates, boolean skipStandard) {
+        JaxbEntry wrapper = new JaxbEntry(this.database, updates);
+        if(!skipStandard) {
+            setNotes(wrapper.getNotes());
+            setTitle(wrapper.getTitle());
+            setUrl(wrapper.getUrl());
+            setPassword(wrapper.getPassword());
+            setUsername(wrapper.getUsername());
+        }
+        HashSet<String> otherNames = new HashSet<>(wrapper.getPropertyNames());
+        otherNames.remove(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD);
+        otherNames.remove(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE);
+        otherNames.remove(JaxbEntry.STANDARD_PROPERTY_NAME_URL);
+        otherNames.remove(JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME);
+        otherNames.remove(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES);
+        for(String name : otherNames) {
+            setProperty(name, wrapper.getProperty(name));
+        }
+        for (String name : wrapper.getBinaryPropertyNames()) {
+            byte[] data = wrapper.getBinaryProperty(name);
+            setBinaryProperty(name, data);
+        }
+        this.delegate.setCustomIconUUID(updates.getCustomIconUUID());
     }
 
     @Override
