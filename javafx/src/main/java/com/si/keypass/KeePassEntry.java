@@ -10,48 +10,79 @@ import java.util.UUID;
 
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.property.adapter.JavaBeanStringPropertyBuilder;
 import javafx.beans.value.ObservableValue;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.jetbrains.annotations.NotNull;
-import org.linguafranca.pwdb.kdbx.jaxb.binding.BinaryField;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbEntry;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbGroup;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
-import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 
 public class KeePassEntry implements Comparable<KeePassEntry> {
-    JaxbEntryBinding binding;
-    JaxbGroupBinding group;
+    JaxbEntry binding;
+    JaxbGroup group;
     Map<UUID, ImageView> iconsMap = new HashMap<>();
     ArrayList<KeePassAttachment> attachments = new ArrayList<>();
 
-    public KeePassEntry(JaxbGroupBinding group, JaxbEntryBinding binding, Map<UUID, ImageView> iconsMap) {
+    public KeePassEntry(JaxbGroup group, JaxbEntry binding, Map<UUID, ImageView> iconsMap) {
         this.group = group;
         this.binding = binding;
         this.iconsMap = iconsMap;
     }
 
+    public JaxbGroup getGroup() {
+        return group;
+    }
+
     public String getPassword() {
         return getField("Password");
+    }
+    public void setPassword(String password) {
+        setField("Password", password);
+    }
+    public StringProperty passwordProperty() {
+        StringProperty property = null;
+        try {
+            property = JavaBeanStringPropertyBuilder.create()
+                    .bean(this)
+                    .name("password")
+                    .build();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return property;
     }
     public String getUsername() {
         return getField("UserName");
     }
+    public void setUsername(String username) {
+        setField("UserName", username);
+    }
     public String getURL() {
         return getField("URL");
+    }
+    public void setURL(String url) {
+        setField("URL", url);
     }
     public String getNotes() {
         return getField("Notes");
     }
-
+    public void setNotes(String notes) {
+        setField("Notes", notes);
+    }
     /**
      * These are the fields other than the well known ones
      * @return
      */
     public Set<String> getAttributes() {
         HashSet<String> names = new HashSet<>();
-        for(StringField field : binding.getString()) {
-            names.add(field.getKey());
+        for(String name : binding.getBinaryPropertyNames()) {
+            names.add(name);
+        }
+        for(String name : binding.getPropertyNames()) {
+            names.add(name);
         }
         names.remove("Title");
         names.remove("UserName");
@@ -64,6 +95,10 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
     }
     public String getAttributeValue(String name) {
         return getField(name);
+    }
+
+    public void addAttribute(String name, String value) {
+        setField(name, value);
     }
 
     public List<KeePassAttachment> getAttachments() {
@@ -85,78 +120,136 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
         System.out.printf("icon(%s), %s,%s\n", getTitle(), uuid, icon);
         return new SimpleObjectProperty<>(icon);
     }
-
-    public ObservableValue<String> getName() {
-        String name = "";
-        for(StringField field : binding.getString()) {
-            if(field.getKey().equals("UserName")) {
-                name = field.getValue().getValue();
-            }
-        }
-        return new ReadOnlyStringWrapper(name);
-    }
-    public ObservableValue<String> getURLValue() {
-        String url = "";
-        for(StringField field : binding.getString()) {
-            if(field.getKey().equals("URL")) {
-                url = field.getValue().getValue();
-            }
-        }
-        return new ReadOnlyStringWrapper(url);
-    }
-    public ObservableValue<String> getTitle() {
-        String title = "";
-        for(StringField field : binding.getString()) {
-            if(field.getKey().equals("Title")) {
-                title = field.getValue().getValue();
-            }
-        }
-        return new ReadOnlyStringWrapper(title);
+    public void setIcon(UUID id) {
+        binding.setCustomIconUUID(id);
     }
 
+    public StringProperty nameProperty() {
+        return getFieldProperty("name");
+    }
+    public String getName() {
+        return getField("UserName");
+    }
+    public void setName(String name) {
+        setField("UserName", name);
+    }
+    public StringProperty urlProperty() {
+        StringProperty property = null;
+        try {
+            property = JavaBeanStringPropertyBuilder.create()
+                    .bean(this)
+                    .name("URL")
+                    .build();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return property;
+    }
+    public StringProperty titleProperty() {
+        StringProperty titleProperty = null;
+        try {
+            titleProperty = JavaBeanStringPropertyBuilder.create()
+                    .bean(this)
+                    .name("title")
+                    .build();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+        return titleProperty;
+    }
+    public String getTitle() {
+        String title = getField("Title");
+        return title;
+    }
+    public void setTitle(String title) {
+        setField("Title", title);
+        System.out.printf("Title changed to: %s\n", title);
+    }
+
+    public JaxbEntryBinding getDelegate() {
+        return this.binding.getDelegate();
+    }
+    public void updateDelegate(JaxbEntryBinding updates) {
+        HashMap<String, String> standardFields = new HashMap<>();
+        for(StringField field : updates.getString()) {
+            if(JaxbEntry.isStandardName(field.getKey())) {
+                standardFields.put(field.getKey(), field.getValue().getValue());
+            }
+        }
+        if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE)) {
+            titleProperty().setValue(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE));
+        }
+        if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME)) {
+            nameProperty().setValue(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME));
+        }
+        if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_URL)) {
+            urlProperty().setValue(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_URL));
+        }
+        if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD)) {
+            passwordProperty().setValue(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD));
+        }
+    }
     @Override
     public int compareTo(@NotNull KeePassEntry o) {
-        String myTitle = getTitle().getValue();
-        String oTitle = o.getTitle().getValue();
+        String myTitle = getTitle();
+        String oTitle = o.getTitle();
         return myTitle.compareTo(oTitle);
     }
 
     @Override
     public int hashCode() {
-        return getTitle().getValue().hashCode();
+        return getTitle().hashCode();
     }
 
     @Override
     public boolean equals(Object obj) {
         KeePassEntry entry = (KeePassEntry) obj;
-        return getTitle().getValue().equals(entry.getName().getValue());
+        if(entry != null) {
+            String title = getTitle();
+            String objTitle = entry.getTitle();
+            return title.equals(objTitle);
+        }
+        return false;
     }
 
     public String toString() {
-        StringBuilder tmp = new StringBuilder("KeePassEntry: "+getTitle());
+        StringBuilder tmp = new StringBuilder("KeePassEntry: "+ getTitle());
         tmp.append("\ntags: ");
         tmp.append(binding.getTags());
         tmp.append("\nstrings: ");
-        for(StringField field : binding.getString()) {
-            tmp.append(String.format("%s/%s\n", field.getKey(), field.getValue().getValue()));
+        for(String name : binding.getPropertyNames()) {
+            tmp.append(String.format("%s/%s\n", name, binding.getProperty(name)));
         }
-        tmp.append(String.format("\ncreate: %s, usage: %d", binding.getTimes().getCreationTime(), binding.getTimes().getUsageCount()));
+        tmp.append(String.format("\ncreate: %s, usage: %d", binding.getCreationTime(), binding.getTimes().getUsageCount()));
         tmp.append("\nbinaries: ");
-        for(BinaryField field : binding.getBinary()) {
-            tmp.append(String.format("%s/%s\n", field.getKey(), field.getValue().getRef()));
+        for(String name : binding.getBinaryPropertyNames()) {
+            byte[] data = binding.getBinaryProperty(name);
+            if(data == null) {
+                data = new byte[0];
+            }
+            tmp.append(String.format("%s/%d\n", name, data.length));
         }
         tmp.append("\nattributes: "+getAttributes());
         return tmp.toString();
     }
 
-    private String getField(String name) {
-        String fieldValue = null;
-        for(StringField field : binding.getString()) {
-            if(field.getKey().equals(name)) {
-                fieldValue = field.getValue().getValue();
-            }
+    private StringProperty getFieldProperty(String name) {
+        StringProperty property = null;
+        try {
+            property = JavaBeanStringPropertyBuilder.create()
+                    .bean(this)
+                    .name(name)
+                    .build();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
         }
+        return property;
+    }
+    private String getField(String name) {
+        String fieldValue =  binding.getProperty(name);
         return fieldValue;
     }
-
+    private void setField(String name, String value) {
+        binding.setProperty(name, value);
+    }
 }
