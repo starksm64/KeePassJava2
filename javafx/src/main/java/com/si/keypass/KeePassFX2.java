@@ -5,12 +5,15 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,7 +31,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Cursor;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.RadioButton;
@@ -45,20 +47,23 @@ import org.linguafranca.pwdb.kdbx.HashedKey;
 import org.linguafranca.pwdb.kdbx.Helpers;
 import org.linguafranca.pwdb.kdbx.KdbxCreds;
 import org.linguafranca.pwdb.kdbx.KdbxHeader;
-import org.linguafranca.pwdb.kdbx.KdbxSerializer;
-import org.linguafranca.pwdb.kdbx.jaxb.JaxbSerializableDatabase;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbDatabase;
+import org.linguafranca.pwdb.kdbx.jaxb.JaxbGroup;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.CustomIcons;
-import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbGroupBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.KeePassFile;
 
 /**
  * The current JavaFX application entry point for the KeyPass app.
  */
 public class KeePassFX2 extends Application {
-    Map<UUID, ImageView> iconsMap = new HashMap<>();
+    static DateTimeFormatter NOW_TIME_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS");
+    private Map<UUID, ImageView> iconsMap = new HashMap<>();
+    private List<CustomIcons.Icon> icons;
     // TODO: this needs to be preference
-    String pivToolPath = "/Users/starksm/bin/yubico-piv-tool-1.7.0/bin/yubico-piv-tool";
-    KeePassFile keePassFile;
+    private String pivToolPath = "/Users/starksm/bin/yubico-piv-tool-1.7.0/bin/yubico-piv-tool";
+    private JaxbDatabase keePassDB;
+    private KeePassFile keePassFile;
+    private CompositeKey dbCredentials;
     @FXML
     Label loadDlogTitle;
     @FXML
@@ -69,12 +74,16 @@ public class KeePassFX2 extends Application {
     TextField keyFileField;
     @FXML
     TextField dbFileField;
+
     // Was the load db dialog cancelled
-    boolean loadCancelled;
-    Stage loadDbStage;
+    private boolean loadCancelled;
+    private Stage loadDbStage;
     private KeePassController controller;
     private AppPrefs appPrefs;
 
+    public static void main(String[] args) {
+        launch(args);
+    }
     @Override
     public void start(Stage primaryStage) throws Exception {
         System.out.printf("KeyPassFX2.start...\n");
@@ -83,12 +92,20 @@ public class KeePassFX2 extends Application {
         FXMLLoader loader = new FXMLLoader(fxml);
         Parent root = loader.load();
         controller = loader.getController();
-        TreeItem<JaxbGroupBinding> rootGroup = loadDB();
+        TreeItem<JaxbGroup> rootGroup = loadDB();
         if(rootGroup != null) {
-            controller.setRoot(rootGroup, iconsMap, keePassFile);
+            controller.setRoot(keePassDB, rootGroup, iconsMap, icons, dbCredentials);
             System.out.printf("root=%s, controller=%s\n", root, controller);
             Scene scene = new Scene(root);
             scene.focusOwnerProperty().addListener((obs, old, nv) -> {System.out.printf("focus(%s), %s to %s\n", obs, old, nv); controller.setFocusNode(nv);});
+            URL x = getClass().getResource("/icons/keepassxc.png");
+            if(x != null) {
+                System.out.printf("Found icon: %s\n", x);
+                Image mainIcon = new Image(x.openStream());
+                primaryStage.getIcons().add(mainIcon);
+            } else {
+                System.out.printf("No app icon: %s\n", getClass().getResource("icons/keypassxc.png"));
+            }
             primaryStage.setScene(scene);
             primaryStage.show();
         }
@@ -126,7 +143,7 @@ public class KeePassFX2 extends Application {
 
     private void loadPasswordFromFile() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select Password File");
+        fileChooser.setTitle("Select Password File(s)");
         File selectedFile = fileChooser.showOpenDialog(null);
         if(selectedFile != null) {
             loadPasswordFromFile(selectedFile);
@@ -182,7 +199,7 @@ public class KeePassFX2 extends Application {
     @FXML
     private void selectKeys() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select KeyPass kdbx file");
+        fileChooser.setTitle("Select Database Key File(s)");
         List<File> selectedFiles = fileChooser.showOpenMultipleDialog(null);
         if(selectedFiles != null) {
             StringBuilder list = new StringBuilder();
@@ -218,7 +235,7 @@ public class KeePassFX2 extends Application {
         loadDbStage.hide();
     }
 
-    private TreeItem<JaxbGroupBinding> loadDB() throws IOException {
+    private TreeItem<JaxbGroup> loadDB() throws IOException {
         URL fxml = getClass().getResource("/loaddb.fxml");
         FXMLLoader loader = new FXMLLoader(fxml);
         //loader.setRoot(this);
@@ -239,15 +256,28 @@ public class KeePassFX2 extends Application {
         loadDbStage.toBack();
         loadDbStage = null;
 
-        JaxbGroupBinding empty = new JaxbGroupBinding();
-        empty.setName("Empty");
-        TreeItem<JaxbGroupBinding> rootItem = new TreeItem<>(empty);
+        TreeItem<JaxbGroup> rootItem = null;
+
         // get an input stream from KDB file
-        String kdbxFile =  dbFileField.getText();
-        if(kdbxFile == null || kdbxFile.length() == 0) {
-            kdbxFile = loadDefault();
+        String kdbxFileName =  dbFileField.getText();
+        if(kdbxFileName == null || kdbxFileName.length() == 0) {
+            kdbxFileName = loadDefault();
         }
-        if(kdbxFile != null) {
+        if(kdbxFileName != null) {
+            // First make a backup of the file
+            File kdbxFile = new File(kdbxFileName);
+            LocalDateTime now = LocalDateTime.now();
+            String backupName = kdbxFileName + "." + now.format(NOW_TIME_FMT);
+            File keePassFileBackup = new File(backupName);
+            try {
+                Files.copy(kdbxFile.toPath(), keePassFileBackup.toPath(), StandardCopyOption.COPY_ATTRIBUTES);
+                System.out.printf("Made a copy of DB as: %s\n", keePassFileBackup.getAbsolutePath());
+                controller.setBackupFile(keePassFileBackup);
+            } catch (IOException e) {
+                Dialogs.showExceptionAlert("Backup failure", backupName, e);
+            }
+
+            // Now open the DB
             FileInputStream kdbxIS = new FileInputStream(kdbxFile);
             Credentials credentials = createCredentials();
             System.out.printf(credentials.toString());
@@ -255,27 +285,34 @@ public class KeePassFX2 extends Application {
             System.out.printf("Header.getCipherUuid: %s\n", kdbxHeader.getCipherUuid());
             System.out.printf("Header.getProtectedStreamAlgorithm: %s\n", kdbxHeader.getProtectedStreamAlgorithm());
             System.out.printf("Header.getVersion: %s\n", kdbxHeader.getVersion());
+            keePassDB = JaxbDatabase.load(credentials, kdbxIS);
+            /*
             InputStream decryptedInputStream = KdbxSerializer.createUnencryptedInputStream(credentials, kdbxHeader, kdbxIS);
             JaxbSerializableDatabase db = new JaxbSerializableDatabase();
             db.setEncryption(kdbxHeader.getStreamEncryptor());
             db.load(decryptedInputStream);
-            keePassFile = db.getKeePassFile();
-            KeePassFile.Root root = keePassFile.getRoot();
-            List<JaxbGroupBinding> groups = root.getGroup().getGroup();
+            */
+            keePassFile = keePassDB.getKeePassFile();
+            List<JaxbGroup> groups = keePassDB.getRootGroup().getGroups();
             StringBuilder output = new StringBuilder();
             output.append("*.kdbx\n" );
 
             // Icon map
-            List<CustomIcons.Icon> icons = keePassFile.getMeta().getCustomIcons().getIcon();
+            icons = keePassFile.getMeta().getCustomIcons().getIcon();
+            RandomAccessFile iconCache = new RandomAccessFile("/tmp/icon.cache", "rw");
             for (CustomIcons.Icon icon : icons) {
+                iconCache.writeUTF(icon.getUUID().toString());
+                iconCache.writeInt(icon.getData().length);
+                iconCache.write(icon.getData());
                 ByteArrayInputStream data = new ByteArrayInputStream(icon.getData());
                 ImageView iconView = new ImageView(new Image(data, 64, 64, false, false));
                 iconsMap.put(icon.getUUID(), iconView);
             }
+            iconCache.close();
 
-            rootItem = new TreeItem<>(root.getGroup());
-            for(JaxbGroupBinding group : groups) {
-                TreeItem<JaxbGroupBinding> groupItem = toTreeItem(group, iconsMap);
+            rootItem = new TreeItem<>(keePassDB.getRootGroup());
+            for(JaxbGroup group : groups) {
+                TreeItem<JaxbGroup> groupItem = toTreeItem(group, iconsMap);
                 ImageView iconView = iconsMap.get(group.getCustomIconUUID());
                 if(iconView != null) {
                     groupItem.setGraphic(iconView);
@@ -283,7 +320,7 @@ public class KeePassFX2 extends Application {
                 rootItem.getChildren().add(groupItem);
             }
             System.out.println(output.toString());
-            controller.addRecentFile(kdbxFile);
+            controller.addRecentFile(kdbxFileName);
         }
         scene.setCursor(Cursor.DEFAULT);
 
@@ -337,8 +374,8 @@ public class KeePassFX2 extends Application {
         return null;
     }
 
-    private TreeItem<JaxbGroupBinding> toTreeItem(JaxbGroupBinding group, Map<UUID, ImageView> iconsMap) {
-        TreeItem<JaxbGroupBinding> groupItem = new TreeItem<>(group);
+    private TreeItem<JaxbGroup> toTreeItem(JaxbGroup group, Map<UUID, ImageView> iconsMap) {
+        TreeItem<JaxbGroup> groupItem = new TreeItem<>(group);
         if(group.getCustomIconUUID() != null) {
             ImageView iconView = iconsMap.get(group.getCustomIconUUID());
             if(iconView != null) {
@@ -350,11 +387,11 @@ public class KeePassFX2 extends Application {
     }
 
     Credentials createCredentials() throws IOException {
-        CompositeKey credentials = new CompositeKey();
+        dbCredentials = new CompositeKey();
         String pass = passwordField.getText();
         KdbxCreds creds = new KdbxCreds(pass.getBytes());
         System.out.printf("KdbxCreds: %s\n", Helpers.encodeBase64Content(creds.getKey()));
-        credentials.addKey(creds);
+        dbCredentials.addKey(creds);
         String[] keyFiles = keyFileField.getText().split(",");
         System.out.printf("keyFileField: %s\n", keyFileField.getText());
         byte[] tmp = new byte[4096];
@@ -373,9 +410,9 @@ public class KeePassFX2 extends Application {
             System.out.printf("\tbytes: %d\n", key.length);
             HashedKey hkey = new HashedKey(key);
             System.out.printf("\t%s\n", Helpers.encodeBase64Content(hkey.getKey()));
-            credentials.addKey(hkey);
+            dbCredentials.addKey(hkey);
         }
-        return credentials;
+        return dbCredentials;
     }
 }
 
