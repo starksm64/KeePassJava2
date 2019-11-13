@@ -11,6 +11,11 @@
     <name>KeePassX :: JavaFX</name>
     <description>The com.si JavaFX frontend</description>
 
+    <properties>
+        <javax.activation.version>1.2.0</javax.activation.version>
+        <jaxb.api.version>2.3.1</jaxb.api.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.linguafranca.pwdb</groupId>
@@ -48,6 +53,25 @@
             <groupId>org.passay</groupId>
             <artifactId>passay</artifactId>
             <version>1.4.0</version>
+        </dependency>
+
+        <!-- JAXB -->
+        <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>javax.activation</artifactId>
+            <version>${javax.activation.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>${jaxb.api.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>${jaxb.api.version}</version>
         </dependency>
     </dependencies>
 
@@ -139,6 +163,14 @@
                             </configuration>
                         </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>9</source>
+                    <target>9</target>
+                </configuration>
             </plugin>
         </plugins>
     </build>
