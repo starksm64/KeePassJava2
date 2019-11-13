@@ -21,10 +21,11 @@ import org.linguafranca.pwdb.kdbx.jaxb.binding.JaxbEntryBinding;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.StringField;
 
 public class KeePassEntry implements Comparable<KeePassEntry> {
-    JaxbEntry binding;
-    JaxbGroup group;
-    Map<UUID, ImageView> iconsMap = new HashMap<>();
-    ArrayList<KeePassAttachment> attachments = new ArrayList<>();
+    private JaxbEntry binding;
+    private JaxbGroup group;
+    private Map<UUID, ImageView> iconsMap = new HashMap<>();
+    private ArrayList<KeePassAttachment> attachments = new ArrayList<>();
+    private SimpleObjectProperty<ImageView> iconProperty;
 
     public KeePassEntry(JaxbGroup group, JaxbEntry binding, Map<UUID, ImageView> iconsMap) {
         this.group = group;
@@ -106,9 +107,27 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
     }
 
     public ObservableValue<ImageView> getIcon() {
-        UUID uuid = binding.getCustomIconUUID();
+        if(iconProperty == null) {
+            UUID uuid = binding.getCustomIconUUID();
+            ImageView icon = iconsMap.get(uuid);
+            if (icon == null) {
+                UUID groupUuid = group.getCustomIconUUID();
+                System.out.printf("icon(%s), entry icon is null, trying %s\n", getTitle(), groupUuid);
+                icon = iconsMap.get(group.getCustomIconUUID());
+                icon = new ImageView(icon.getImage());
+                uuid = UUID.randomUUID();
+                binding.setCustomIconUUID(uuid);
+                iconsMap.put(uuid, icon);
+            }
+            System.out.printf("icon(%s), %s,%s\n", getTitle(), uuid, icon);
+            iconProperty = new SimpleObjectProperty<>(icon);
+        }
+        return iconProperty;
+    }
+    public void setIcon(UUID uuid) {
+        binding.setCustomIconUUID(uuid);
         ImageView icon = iconsMap.get(uuid);
-        if(icon == null) {
+        if (icon == null) {
             UUID groupUuid = group.getCustomIconUUID();
             System.out.printf("icon(%s), entry icon is null, trying %s\n", getTitle(), groupUuid);
             icon = iconsMap.get(group.getCustomIconUUID());
@@ -117,11 +136,8 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
             binding.setCustomIconUUID(uuid);
             iconsMap.put(uuid, icon);
         }
-        System.out.printf("icon(%s), %s,%s\n", getTitle(), uuid, icon);
-        return new SimpleObjectProperty<>(icon);
-    }
-    public void setIcon(UUID id) {
-        binding.setCustomIconUUID(id);
+        iconProperty.setValue(icon);
+        System.out.printf("updated icon(%s), %s,%s\n", getTitle(), uuid, icon);
     }
 
     public StringProperty nameProperty() {
@@ -187,6 +203,9 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
         }
         if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD)) {
             passwordProperty().setValue(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD));
+        }
+        if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES)) {
+            setNotes(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES));
         }
     }
     @Override
