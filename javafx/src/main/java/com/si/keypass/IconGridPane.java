@@ -27,6 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Component to display and select a custom icon. Can also add new
+ * custom icons.
+ */
 public class IconGridPane {
     private Map<UUID, ImageView> iconsMap;
     private Pane rootPane;
@@ -38,18 +42,19 @@ public class IconGridPane {
     public boolean isEditCancelled() {
         return editCancelled;
     }
-    public UUID selectIcon(Map<UUID, ImageView> iconsMap, List<CustomIcons.Icon> newIcons) throws Exception {
+    public UUID selectIcon(Map<UUID, ImageView> iconsMap, List<CustomIcons.Icon> newIcons, UUID current) throws Exception {
         this.iconsMap = iconsMap;
         this.newIcons = newIcons;
-        loadGrid();
+        loadGrid(current);
         Stage stage = new Stage();
         Scene scene = new Scene(rootPane, gridPane.getWidth()+128, gridPane.getHeight());
         stage.setScene(scene);
-        stage.show();
+        stage.showAndWait();
+        System.out.printf("End selectIcon, selectedIcon=%s\n", selectedIcon);
         return selectedIcon;
     }
 
-    private void loadGrid() {
+    private void loadGrid(UUID current) {
         gridPane = new GridPane();
         gridPane.setHgap(5);
         gridPane.setVgap(5);
@@ -75,6 +80,9 @@ public class IconGridPane {
                 btn.setPrefSize(64, 64);
                 btn.setContentDisplay(ContentDisplay.TOP);
                 btn.setOnAction(this::selectedIcon);
+                if(id.equals(current)) {
+                    btn.fire();
+                }
                 gridPane.add(btn, col, row);
             }
         }
@@ -106,6 +114,7 @@ public class IconGridPane {
         Button btn = (Button) event.getSource();
         String id = btn.getText();
         selectedIcon = UUID.fromString(id);
+        System.out.printf("New selectedIcon=%s\n", selectedIcon);
     }
     @FXML
     private void newCustom() {
@@ -122,7 +131,7 @@ public class IconGridPane {
                 ByteArrayInputStream data = new ByteArrayInputStream(iconData);
                 ImageView iconView = new ImageView(new Image(data, 64, 64, false, false));
                 iconsMap.put(id, iconView);
-                int cols = gridPane.impl_getColumnCount();
+                int cols = gridPane.getColumnCount();
                 int row = (iconsMap.size()-1) / cols;
                 int col = (iconsMap.size()-1) % cols;
 
@@ -139,6 +148,7 @@ public class IconGridPane {
                 icon.setData(iconData);
                 icon.setUUID(id);
                 newIcons.add(icon);
+                System.out.printf("Added new icon: %s, file=%s\n", id, selectedFile.getName());
             } catch (IOException e) {
                 e.printStackTrace();
             }

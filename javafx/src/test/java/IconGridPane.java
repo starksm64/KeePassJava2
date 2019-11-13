@@ -142,7 +142,7 @@ public class IconGridPane extends Application {
                 ByteArrayInputStream data = new ByteArrayInputStream(iconData);
                 ImageView iconView = new ImageView(new Image(data, 64, 64, false, false));
                 iconsMap.put(id, iconView);
-                int cols = gridPane.impl_getColumnCount();
+                int cols = gridPane.getColumnCount();
                 int row = (iconsMap.size()-1) / cols;
                 int col = (iconsMap.size()-1) % cols;
 
