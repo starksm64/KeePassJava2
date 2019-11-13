@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import java.net.URL?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ButtonBar?>
 <?import javafx.scene.control.Label?>
@@ -28,7 +29,6 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<?import java.net.URL?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="605.0" prefWidth="941.0" xmlns="http://javafx.com/javafx/8.0.211" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.si.keypass.KeePassController">
     <stylesheets>
         <URL value="@main.css" />
@@ -77,6 +77,7 @@
                               <KeyCodeCombination alt="UP" code="L" control="DOWN" meta="UP" shift="UP" shortcut="UP" />
                            </accelerator>
                         </MenuItem>
+                        <MenuItem mnemonicParsing="false" onAction="#entryNew" text="New..." />
                         <MenuItem mnemonicParsing="false" onAction="#entryEdit" text="Edit..." />
                         <MenuItem mnemonicParsing="false" onAction="#entryIcon" text="Icon..." />
                     <MenuItem mnemonicParsing="false" onAction="#entryDelete" text="Delete" />
