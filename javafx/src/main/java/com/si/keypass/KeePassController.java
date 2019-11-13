@@ -35,6 +35,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -225,6 +226,7 @@ public class KeePassController {
             String notes = entry.getNotes();
             notesArea.setText(notes);
             passwordField.setText(entry.getPassword());
+            repeatField.clear();
             List<KeePassAttachment> attachments = entry.getAttachments();
             if(attachments.size() > 0) {
                 attachmentList.getItems().clear();
@@ -351,12 +353,12 @@ public class KeePassController {
         if(selectedEntry != null) {
             JaxbGroup group = selectedEntry.getGroup();
             group.addEntry(jaxbEntry);
-            System.out.printf("Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getName());
+            System.out.printf("1:Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getName());
         } else {
             TreeItem<JaxbGroup> group = groupTreeView.getSelectionModel().getSelectedItem();
             if(group != null) {
                 group.getValue().addEntry(jaxbEntry);
-                System.out.printf("Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getValue().getName());
+                System.out.printf("2:Adding newly created entry: %s to: %s\n", jaxbEntry.getUuid(), group.getValue().getName());
             } else {
                 keyPassDB.deleteEntry(jaxbEntry.getUuid());
                 Dialogs.showWarning("No Group", "No group selected for entry");
@@ -384,7 +386,7 @@ public class KeePassController {
     private void entryEdit() {
         try {
             editCancelled = false;
-            URL fxml = getClass().getResource("/JsonEditEntry.fxml");
+            URL fxml = getClass().getResource("/editentry.fxml");
             FXMLLoader loader = new FXMLLoader(fxml);
             loader.setController(this);
             Parent parent = loader.load();
@@ -394,13 +396,6 @@ public class KeePassController {
             loadDbStage.setScene(scene);
             // Write out the template json
             JaxbEntryBinding entryBinding = selectedEntry.getDelegate();
-            entryBinding.setUUID(UUID.randomUUID());
-            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE, selectedEntry.getTitle()));
-            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES, selectedEntry.getNotes()));
-            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_PASSWORD, selectedEntry.getPassword()));
-            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_URL, selectedEntry.getURL()));
-            entryBinding.getString().add(stringField(JaxbEntry.STANDARD_PROPERTY_NAME_USER_NAME, selectedEntry.getUsername()));
-
             JAXBContext jc = JAXBContext.newInstance(JaxbEntryBinding.class);
             Marshaller marshaller = jc.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
@@ -438,14 +433,39 @@ public class KeePassController {
     }
     @FXML
     private void entryDelete() {
-        Dialogs.showWarning("Entry->Delete", "Entry-Delete is not implemented yet");
+        if(selectedEntry != null) {
+           Optional<ButtonType> btn = Dialogs.showYesNoCancel("Delete entry", "Delete the entry: "+selectedEntry.getTitle());
+           if(btn.isPresent() && btn.get() == SAVE_TYPE) {
+               UUID uuid = selectedEntry.getDelegate().getUUID();
+               boolean deleted = keyPassDB.deleteEntry(uuid);
+               if (!deleted) {
+                   String msg = String.format("Failed to delete: %s/%s\n", selectedEntry.getTitle(), uuid);
+                   System.out.println(msg);
+                   Dialogs.showWarning("Failed to delete entry", msg);
+               } else {
+                   System.out.printf("Deleted %s\n", selectedEntry.getTitle());
+                   entryTableView.getItems().remove(selectedEntry);
+               }
+           }
+        } else {
+            // A beep character
+            System.out.print("\007");
+            System.out.flush();
+        }
     }
     @FXML
     private void entryIcon() {
         IconGridPane iconGridPane = new IconGridPane();
         try {
-            UUID iconID = iconGridPane.selectIcon(iconsMap, icons);
-            selectedEntry.setIcon(iconID);
+            // Update the selected item icon
+            UUID currentID = selectedEntry.getDelegate().getCustomIconUUID();
+            UUID iconID = iconGridPane.selectIcon(iconsMap, icons, currentID);
+            if(iconID != null && !iconID.equals(currentID)) {
+                selectedEntry.setIcon(iconID);
+                System.out.printf("Selected icon: %s\n", iconID);
+            } else {
+                System.out.printf("Icon not updated: %s\n", iconID);
+            }
         } catch (Exception e) {
             Dialogs.showExceptionAlert("Select Icon", "", e);
         }
@@ -462,6 +482,7 @@ public class KeePassController {
         if(pass.compareTo(check) == 0) {
             System.out.printf("updated password for: %s\n", selectedEntry.getTitle());
             selectedEntry.setPassword(pass);
+            repeatField.clear();
         } else {
             Dialogs.showWarning("SavePassword", "Passwords do not match");
         }
