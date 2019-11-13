@@ -16,8 +16,11 @@ import javafx.scene.layout.Priority;
  * Utility methods for displaying dialogs
  */
 public class Dialogs {
+    /** The Ok/Yes/Save type */
     static ButtonType SAVE_TYPE = new ButtonType("Save");
+    /** The No/Ignore type */
     static ButtonType IGNORE_TYPE = new ButtonType("Ignore");
+    /** The Cancel type */
     static ButtonType CANCEL_TYPE = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
 
     /**
