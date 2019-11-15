@@ -34,6 +34,19 @@
             <artifactId>KeePassJava2-kdbx</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- JAXB -->
+        <dependency>
+            <groupId>com.sun.activation</groupId>
+            <artifactId>javax.activation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.linguafranca.pwdb</groupId>
             <artifactId>test</artifactId>
