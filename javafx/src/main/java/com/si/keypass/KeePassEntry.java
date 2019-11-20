@@ -187,9 +187,13 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
     }
     public void updateDelegate(JaxbEntryBinding updates) {
         HashMap<String, String> standardFields = new HashMap<>();
+        HashMap<String, String> nonstandardFields = new HashMap<>();
+
         for(StringField field : updates.getString()) {
             if(JaxbEntry.isStandardName(field.getKey())) {
                 standardFields.put(field.getKey(), field.getValue().getValue());
+            } else {
+                nonstandardFields.put(field.getKey(), field.getValue().getValue());
             }
         }
         if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_TITLE)) {
@@ -206,6 +210,9 @@ public class KeePassEntry implements Comparable<KeePassEntry> {
         }
         if(standardFields.containsKey(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES)) {
             setNotes(standardFields.get(JaxbEntry.STANDARD_PROPERTY_NAME_NOTES));
+        }
+        // TODO: need to remove any removed non-standard properties
+        for(String name : nonstandardFields.keySet()) {
         }
     }
     @Override

@@ -129,20 +129,25 @@ public class KdbxHeader {
     }
 
     public KdbxHeader(int version) {
-        SecureRandom random = new SecureRandom();
+        this(version, false);
+    }
+    public KdbxHeader(int version, boolean noInit) {
+        if(!noInit) {
+            SecureRandom random = new SecureRandom();
 
-        this.version = version;
-        cipherUuid = Aes.getInstance().getCipherUuid();
-        compressionFlags = CompressionFlags.GZIP;
-        masterSeed = random.generateSeed(32);
-        transformSeed = random.generateSeed(32);
-        transformRounds = 6000;
-        encryptionIv = random.generateSeed(16);
-        innerRandomStreamKey = random.generateSeed(32);
-        streamStartBytes = new byte[32];
-        protectedStreamAlgorithm = ProtectedStreamAlgorithm.SALSA_20;
+            this.version = version;
+            cipherUuid = Aes.getInstance().getCipherUuid();
+            compressionFlags = CompressionFlags.GZIP;
+            masterSeed = random.generateSeed(32);
+            transformSeed = random.generateSeed(32);
+            transformRounds = 6000;
+            encryptionIv = random.generateSeed(16);
+            innerRandomStreamKey = random.generateSeed(32);
+            streamStartBytes = new byte[32];
+            protectedStreamAlgorithm = ProtectedStreamAlgorithm.SALSA_20;
 
-        kdfParameters = Aes.createKdfParameters();
+            kdfParameters = Aes.createKdfParameters();
+        }
     }
 
     /**

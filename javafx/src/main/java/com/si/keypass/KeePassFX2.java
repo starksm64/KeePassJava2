@@ -46,7 +46,6 @@ import org.linguafranca.pwdb.kdbx.CompositeKey;
 import org.linguafranca.pwdb.kdbx.HashedKey;
 import org.linguafranca.pwdb.kdbx.Helpers;
 import org.linguafranca.pwdb.kdbx.KdbxCreds;
-import org.linguafranca.pwdb.kdbx.KdbxHeader;
 import org.linguafranca.pwdb.kdbx.jaxb.JaxbDatabase;
 import org.linguafranca.pwdb.kdbx.jaxb.JaxbGroup;
 import org.linguafranca.pwdb.kdbx.jaxb.binding.CustomIcons;
@@ -59,7 +58,7 @@ public class KeePassFX2 extends Application {
     static DateTimeFormatter NOW_TIME_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS");
     private Map<UUID, ImageView> iconsMap = new HashMap<>();
     private List<CustomIcons.Icon> icons;
-    // TODO: this needs to be preference
+    // This will be override by prefs if they exist
     private String pivToolPath = "/Users/starksm/bin/yubico-piv-tool-1.7.0/bin/yubico-piv-tool";
     private JaxbDatabase keePassDB;
     private KeePassFile keePassFile;
@@ -98,14 +97,16 @@ public class KeePassFX2 extends Application {
             System.out.printf("root=%s, controller=%s\n", root, controller);
             Scene scene = new Scene(root);
             scene.focusOwnerProperty().addListener((obs, old, nv) -> {System.out.printf("focus(%s), %s to %s\n", obs, old, nv); controller.setFocusNode(nv);});
-            URL x = getClass().getResource("/icons/keepassxc.png");
-            if(x != null) {
-                System.out.printf("Found icon: %s\n", x);
-                Image mainIcon = new Image(x.openStream());
+            // Set the application icon for the docks
+            URL appPng = getClass().getResource("/icons/keepassxc.png");
+            if(appPng != null) {
+                System.out.printf("Found icon: %s\n", appPng);
+                Image mainIcon = new Image(appPng.openStream());
                 primaryStage.getIcons().add(mainIcon);
             } else {
                 System.out.printf("No app icon: %s\n", getClass().getResource("icons/keypassxc.png"));
             }
+            primaryStage.setTitle(dbFileField.getText());
             primaryStage.setScene(scene);
             primaryStage.show();
         }
@@ -151,17 +152,16 @@ public class KeePassFX2 extends Application {
     }
     private void loadPasswordFromFile(File selectedFile) {
         try {
-            FileReader reader = new FileReader(selectedFile);
-            BufferedReader br = new BufferedReader(reader);
-            String pass = br.readLine();
-            pass = pass + pass;
-            br.close();
+            String pass = DBUtils.loadPasswordFromFile(selectedFile);
             passwordField.setText(pass);
         } catch (IOException e) {
             Dialogs.showExceptionAlert("Password from File Error", selectedFile.getAbsolutePath(), e);
         }
     }
 
+    /**
+     * Load the pw from a yubikey
+     */
     private void loadPasswordFromYubikey() {
         ProcessBuilder pb = new ProcessBuilder();
         pb.environment().put("LD_LIBRARY_PATH", "/usr/local/lib");
@@ -174,26 +174,32 @@ public class KeePassFX2 extends Application {
         command.add("0x5fc10d");
         pb.command(command);
         String data = null;
+        int ok = 0;
         try {
             System.out.printf("Starting %s\n", pb);
             pb.redirectError(ProcessBuilder.Redirect.INHERIT);
             Process process = pb.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             data = reader.readLine();
-            int ok = process.waitFor();
+            ok = process.waitFor();
             System.out.printf("yubico-piv-tool exit status: %d\n", ok);
         } catch (IOException|InterruptedException e) {
             Dialogs.showExceptionAlert("Yubikey Error", pivToolPath, e);
         }
-        // Convert from hex to decimal string
-        StringBuilder tmp = new StringBuilder();
-        for(int n = 0; n < data.length(); n += 2) {
-            String digits = data.substring(n, n+2);
-            int value = Integer.parseInt(digits, 16);
-            tmp.append((char) value);
+
+        if(ok == 0) {
+            // Convert from hex to decimal string
+            StringBuilder tmp = new StringBuilder();
+            for (int n = 0; n < data.length(); n += 2) {
+                String digits = data.substring(n, n + 2);
+                int value = Integer.parseInt(digits, 16);
+                tmp.append((char) value);
+            }
+            tmp.append(tmp.toString());
+            Platform.runLater(() -> passwordField.setText(tmp.toString()));
+        } else {
+            Dialogs.showWarning("Failed to Read YubiKey", String.format("yubico-piv-tool exit status: %d\n", ok));
         }
-        tmp.append(tmp.toString());
-        Platform.runLater(() -> passwordField.setText(tmp.toString()));
     }
 
     @FXML
@@ -262,6 +268,7 @@ public class KeePassFX2 extends Application {
         String kdbxFileName =  dbFileField.getText();
         if(kdbxFileName == null || kdbxFileName.length() == 0) {
             kdbxFileName = loadDefault();
+            dbFileField.setText(kdbxFileName);
         }
         if(kdbxFileName != null) {
             // First make a backup of the file
@@ -281,10 +288,6 @@ public class KeePassFX2 extends Application {
             FileInputStream kdbxIS = new FileInputStream(kdbxFile);
             Credentials credentials = createCredentials();
             System.out.printf(credentials.toString());
-            KdbxHeader kdbxHeader = new KdbxHeader();
-            System.out.printf("Header.getCipherUuid: %s\n", kdbxHeader.getCipherUuid());
-            System.out.printf("Header.getProtectedStreamAlgorithm: %s\n", kdbxHeader.getProtectedStreamAlgorithm());
-            System.out.printf("Header.getVersion: %s\n", kdbxHeader.getVersion());
             keePassDB = JaxbDatabase.load(credentials, kdbxIS);
             /*
             InputStream decryptedInputStream = KdbxSerializer.createUnencryptedInputStream(credentials, kdbxHeader, kdbxIS);
@@ -335,7 +338,12 @@ public class KeePassFX2 extends Application {
             File defaultMap = new File(rootDir, "default.map");
             if (defaultMap.canRead()) {
                 System.out.printf("Loading defaults from: %s\n", defaultMap.getAbsolutePath());
-                String[] files = readDefaultMap(defaultMap);
+                String[] files = null;
+                try {
+                    files = DBUtils.readDefaultMap(defaultMap);
+                } catch (IOException e) {
+                    Dialogs.showExceptionAlert("DefaultMap Failure", "Failed to read: "+defaultMap.getAbsolutePath(), e);
+                }
                 System.out.printf("Read default files: %s\n", Arrays.asList(files));
                 if(files == null) {
                     Dialogs.showWarning("Failed to load defaults", "No default.map found");
@@ -357,22 +365,7 @@ public class KeePassFX2 extends Application {
         return dbFile;
     }
 
-    /**
-     * Read a default.map file to determine the default pass file, etc.
-     * @param defaultMap - default.map file to load
-     * @return the file names for the defaults if found, null otherwise
-     */
-    private String[] readDefaultMap(File defaultMap) {
-        try(BufferedReader reader = new BufferedReader(new FileReader(defaultMap))) {
-            List<String> tmp = reader.lines().collect(Collectors.toList());
-            String[] lines = new String[tmp.size()];
-            tmp.toArray(lines);
-            return lines;
-        } catch (IOException e) {
-            Dialogs.showExceptionAlert("DefaultMap Failure", "Failed to read: "+defaultMap.getAbsolutePath(), e);
-        }
-        return null;
-    }
+
 
     private TreeItem<JaxbGroup> toTreeItem(JaxbGroup group, Map<UUID, ImageView> iconsMap) {
         TreeItem<JaxbGroup> groupItem = new TreeItem<>(group);

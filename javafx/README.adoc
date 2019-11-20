@@ -1,0 +1,6 @@
+# Notes on JavaFX KeePassJava2 Application
+
+## Native application
+To create the native image, run `mvn verify` after building the fat jar
+via `mvn package`. So far this has only been tested on linux (ubuntu)
+where a .deb package is created.

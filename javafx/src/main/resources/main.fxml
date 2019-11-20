@@ -40,10 +40,14 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
-                        <MenuItem mnemonicParsing="false" text="Open..." />
+                        <MenuItem mnemonicParsing="false" onAction="#fileOpen" text="Open..." />
                         <Menu fx:id="recentFilesMenu" mnemonicParsing="false" text="Open Recent" />
+                        <SeparatorMenuItem mnemonicParsing="false" />
                         <MenuItem mnemonicParsing="false" onAction="#fileSave" text="Save" />
-                        <MenuItem mnemonicParsing="false" onAction="#fileSave" text="Save As..." />
+                        <MenuItem mnemonicParsing="false" onAction="#fileSaveAs" text="Save As..." />
+                        <SeparatorMenuItem mnemonicParsing="false" />
+                        <MenuItem mnemonicParsing="false" onAction="#fileExport" text="Export..." />
+                        <MenuItem mnemonicParsing="false" onAction="#fileImport" text="Import..." />
                         <SeparatorMenuItem mnemonicParsing="false" />
                     <MenuItem mnemonicParsing="false" onAction="#fileQuit" text="Quit">
                            <accelerator>
@@ -161,11 +165,16 @@
                         </Button>
                     </buttons>
                   </ButtonBar>
-                  <TextField onAction="#searchAction" onKeyTyped="#searchKeyPress" promptText="Search..." GridPane.columnIndex="1">
-                     <font>
-                        <Font size="14.0" />
-                     </font>
-                  </TextField>
+                  <HBox GridPane.columnSpan="2">
+                     <children>
+                        <TextField onAction="#searchAction" onKeyTyped="#searchKeyPress" promptText="Search...">
+                           <font>
+                              <Font size="14.0" />
+                           </font>
+                        </TextField>
+                        <Button mnemonicParsing="false" onAction="#cancelSearch" text="Cancel" />
+                     </children>
+                  </HBox>
                </children>
             </GridPane>
          </children>

@@ -63,6 +63,7 @@ public class StringField {
     protected String key;
     @XmlElement(name = "Value", required = true)
     protected StringField.Value value;
+    private transient StringField.Value pushedValue;
 
     /**
      * Gets the value of the key property.
@@ -112,6 +113,20 @@ public class StringField {
         this.value = value;
     }
 
+
+    public void pushValue() {
+        pushedValue = value;
+        this.value = new StringField.Value();
+        this.value.setProtected(pushedValue.getProtected());
+        this.value.setProtectInMemory(pushedValue.getProtectInMemory());
+        this.value.setValue(pushedValue.getValue());
+    }
+    public void popValue() {
+        if(this.pushedValue != null) {
+            this.value = pushedValue;
+            this.pushedValue = null;
+        }
+    }
 
     /**
      * <p>Java class for anonymous complex type.

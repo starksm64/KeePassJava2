@@ -118,8 +118,9 @@ public class KeePassController {
     MenuItem extractMenuItem;
     @FXML
     TextArea editArea;
-    private SimpleBooleanProperty hasAttachments = new SimpleBooleanProperty();
 
+    private SimpleBooleanProperty hasAttachments = new SimpleBooleanProperty();
+    private ObservableList<KeePassEntry> currentEntryList = FXCollections.observableArrayList();
     private Node focusNode;
     private JaxbDatabase keyPassDB;
     private TreeItem<JaxbGroup> rootGroup;
@@ -127,14 +128,18 @@ public class KeePassController {
     private List<CustomIcons.Icon> icons;
     // Backup of the db file created on open
     private File keePassFileBackup;
+    // Credentials used to open the current database
     private CompositeKey credentials;
+    // Current entrytableView selection if there is one
     private KeePassEntry selectedEntry;
-    private String username;
-    private String password;
+    // Entry selected at start of search...
+    private KeePassEntry savedSelectedEntry;
+
     private AtomicBoolean isModified = new AtomicBoolean();
     private List<String> recentFiles = new ArrayList<>();
     private AppPrefs appPrefs;
     private boolean editCancelled;
+
 
     public void setRoot(JaxbDatabase keyPassDB, TreeItem<JaxbGroup> rootGroup, Map<UUID, ImageView> iconsMap,
                         List<CustomIcons.Icon> icons, CompositeKey credentials) {
@@ -149,7 +154,7 @@ public class KeePassController {
                 .selectedItemProperty()
                 .addListener((observable, oldValue, newValue) -> groupSelected(newValue.getValue()));
 
-        entryTableView.setItems(FXCollections.observableArrayList());
+        entryTableView.setItems(currentEntryList);
         imageColumn.setCellValueFactory(cdf -> cdf.getValue().getIcon());
         titleColumn.setCellValueFactory(cdf -> cdf.getValue().titleProperty());
         usernameColumn.setCellValueFactory(cdf -> cdf.getValue().nameProperty());
@@ -203,7 +208,7 @@ public class KeePassController {
     private void groupSelected(JaxbGroup group) {
         System.out.printf("groupSelected: %s\n", group.getName());
         List<JaxbEntry> bindings = group.getEntries();
-        ArrayList<KeePassEntry> tmp = new ArrayList<>();
+        currentEntryList.clear();
         for(JaxbEntry binding : bindings) {
             KeePassEntry entry = new KeePassEntry(group, binding, iconsMap);
             for(String name : binding.getBinaryPropertyNames()) {
@@ -212,10 +217,8 @@ public class KeePassController {
                 entry.getAttachments().add(attachment);
             }
             System.out.println(entry);
-            tmp.add(entry);
+            currentEntryList.add(entry);
         }
-        ObservableList<KeePassEntry> entryBindings = FXCollections.observableArrayList(tmp);
-        entryTableView.setItems(entryBindings);
     }
 
     private void entrySelected(KeePassEntry entry) {
@@ -404,6 +407,7 @@ public class KeePassController {
             this.editArea.setText(writer.toString());
             loadDbStage.showAndWait();
             scene.setCursor(Cursor.WAIT);
+            entryTableView.refresh();
         } catch (Exception e) {
             Dialogs.showExceptionAlert("Edit Entry", "Editing failed", e);
         }
@@ -414,7 +418,7 @@ public class KeePassController {
         Stage stage = (Stage) button.getScene().getWindow();
         stage.close();
         try {
-            // Get the updated
+            // Get the updated text and unmarshall it
             String updateText = editArea.getText();
             JAXBContext jc = JAXBContext.newInstance(JaxbEntryBinding.class);
             Unmarshaller unmarshaller = jc.createUnmarshaller();
@@ -556,10 +560,20 @@ public class KeePassController {
     }
     @FXML
     private void searchKeyPress(KeyEvent keyTyped) {
+        // If this is the start of a search, save the current selection path?
+        if(savedSelectedEntry == null) {
+            savedSelectedEntry = selectedEntry;
+            System.out.printf("savedSelectedEntry set to: %s\n", savedSelectedEntry.getTitle());
+        }
         String typed = keyTyped.getCharacter();
         TextField searchField = (TextField) keyTyped.getSource();
         String text = searchField.getText();
         System.out.printf("searchKeyPress, typed=%s, src=%s\n", typed, text);
+        List<? extends JaxbEntry> entries = keyPassDB.findEntries(text);
+        List<KeePassEntry> names = entries.stream()
+                .map((JaxbEntry e) -> new KeePassEntry(e.getParent(), e, iconsMap))
+                .collect(Collectors.toList());
+        /*
         List<JaxbGroup> groups = this.keyPassDB.getRootGroup().getGroups();
         HashSet<KeePassEntry> matches = new HashSet<>();
         for(JaxbGroup group : groups) {
@@ -574,13 +588,92 @@ public class KeePassController {
             }
         }
         List<String> names = matches.stream().map(KeePassEntry::getTitle).collect(Collectors.toList());
-        System.out.printf("matches(%d): %s\n", names.size(), names);
-    }
-    @FXML
-    private void searchAction() {
-        System.out.printf("searchAction clicked\n");
+        */
+        System.out.printf("matches(%d)\n", names.size());
+        currentEntryList.clear();
+        currentEntryList.addAll(names);
     }
 
+    /**
+     * Selects the first entry in the current search list
+     */
+    @FXML
+    private void searchAction() {
+        System.out.printf("searchAction(%d)\n", currentEntryList.size());
+        if(currentEntryList.size() > 0) {
+            KeePassEntry entry = currentEntryList.get(0);
+            System.out.printf("searchAction clicked, savedSelectedEntry: %s, entry: %s\n", savedSelectedEntry.getTitle(), entry.getTitle());
+            int groupIndex = 0;
+            for(JaxbGroup group : rootGroup.getValue().getGroups()) {
+                String gname = group.getName();
+                System.out.printf("Checking %s to: %s\n", entry.getGroup().getName(), gname);
+                if(gname.equals(entry.getGroup().getName())) {
+                    System.out.printf("..matched, groupIndex=%d\n", groupIndex);
+                    break;
+                }
+                groupIndex ++;
+            }
+            System.out.printf("Selecting group index: %d\n", groupIndex);
+            groupTreeView.getSelectionModel().select(groupIndex);
+            System.out.printf("Selecting entry: %s\n", savedSelectedEntry.getTitle());
+            entryTableView.getSelectionModel().select(savedSelectedEntry);
+            savedSelectedEntry = null;
+        }
+    }
+
+    /**
+     * Restores the current search list to the view before the search started
+     */
+    @FXML
+    private void cancelSearch() {
+        // Restore the pre-search view
+        int groupIndex = 0;
+        for(JaxbGroup group : rootGroup.getValue().getGroups()) {
+            if(group.getName().equals(savedSelectedEntry.getGroup().getName())) {
+                break;
+            }
+            groupIndex ++;
+        }
+        groupTreeView.getSelectionModel().select(groupIndex);
+        entryTableView.getSelectionModel().select(savedSelectedEntry);
+        savedSelectedEntry = null;
+    }
+
+    /**
+     * Export an unencrypted json file of the db
+     */
+    @FXML
+    private void fileExport() {
+        FileChooser fc = new FileChooser();
+        File exportFile = fc.showSaveDialog(null);
+        if(exportFile != null) {
+            try(OutputStream testStream = new FileOutputStream(exportFile)) {
+                NoopJaxbSDb tmpDB = new NoopJaxbSDb();
+                tmpDB.setKeePassFile(keyPassDB.getKeePassFile());
+                tmpDB.save(testStream);
+                //keyPassDB.save(new StreamFormat.None(), null, testStream);
+                System.out.printf("Exported(%d) to: %s\n", exportFile.length(), exportFile.getAbsolutePath());
+            } catch (IOException e) {
+                Dialogs.showExceptionAlert("Export Failed", exportFile.getAbsolutePath(), e);
+            }
+        }
+    }
+
+    /**
+     *
+     */
+    @FXML
+    private void fileImport() {
+        Dialogs.showWarning("File Import...", "Fail->Import not implemented yet");
+    }
+
+    /**
+     * Replaces the current contents with a new database, or should it create a new tab?
+     */
+    @FXML
+    private void fileOpen() {
+        Dialogs.showWarning("File Open...", "Fail->Open not implemented yet");
+    }
     @FXML
     private void fileSave() {
         try {

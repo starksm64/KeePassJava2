@@ -44,6 +44,8 @@ public class JaxbSerializableDatabase implements SerializableDatabase {
     private ObjectFactory objectFactory = new ObjectFactory();
 
 
+    private static ThreadLocal<JaxbEntry> lastEntry = new ThreadLocal<>();
+    private static ThreadLocal<StringField> lastField = new ThreadLocal<>();
     @Override
     public JaxbSerializableDatabase load(InputStream inputStream) {
         try {
@@ -53,9 +55,18 @@ public class JaxbSerializableDatabase implements SerializableDatabase {
                 @Override
                 public void afterUnmarshal(Object target, Object parent) {
                     try {
+                        if (target instanceof JaxbEntry) {
+                            lastEntry.set((JaxbEntry) target);
+                        }
+                        else if (target instanceof StringField) {
+                            lastField.set((StringField) target);
+                        }
                         if (target instanceof StringField.Value) {
                             StringField.Value value = (StringField.Value) target;
                             if (value.getProtected() !=null && value.getProtected()) {
+                                if(lastField.get().getKey().equals("Password") && lastEntry.get() != null) {
+                                    System.out.printf("%s.base64: %s\n", lastEntry.get().getTitle(), value.getValue());
+                                }
                                 byte[] encrypted = Base64.decodeBase64(value.getValue().getBytes());
                                 String decrypted = new String(encryption.decrypt(encrypted), "UTF-8");
                                 value.setValue(decrypted);
@@ -74,6 +85,8 @@ public class JaxbSerializableDatabase implements SerializableDatabase {
                 }
             });
             keePassFile = (KeePassFile) u.unmarshal(inputStream);
+            lastEntry.remove();
+            lastField.remove();
             return this;
         } catch (JAXBException e) {
             throw new IllegalStateException(e);
@@ -109,6 +122,7 @@ public class JaxbSerializableDatabase implements SerializableDatabase {
                         if (source instanceof StringField) {
                             StringField field = (StringField) source;
                             if (toEncrypt.contains(field.getKey())) {
+                                field.pushValue();
                                 byte[] encrypted = encryption.encrypt(field.getValue().getValue().getBytes());
                                 String b64 = new String(Base64.encodeBase64(encrypted), "UTF-8");
                                 field.getValue().setValue(b64);
@@ -117,6 +131,13 @@ public class JaxbSerializableDatabase implements SerializableDatabase {
                         }
                     } catch (UnsupportedEncodingException e) {
                         throw new IllegalStateException();
+                    }
+                }
+                @Override
+                public void afterMarshal(Object source) {
+                    if (source instanceof StringField) {
+                        StringField field = (StringField) source;
+                        field.popValue();
                     }
                 }
             });
