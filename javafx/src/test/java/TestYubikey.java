@@ -12,13 +12,16 @@ import java.util.ArrayList;
  *   sudo apt install opensc
  */
 public class TestYubikey {
+    //static String CMD = "/usr/local/bin/yubico-piv-tool";
+    static String CMD = "/Users/starksm/bin/yubico-piv-tool-1.7.0/bin/yubico-piv-tool";
+
     @Test
     public void testReadKey() {
         ProcessBuilder pb = new ProcessBuilder();
         pb.environment().put("LD_LIBRARY_PATH", "/usr/local/lib");
         ArrayList<String> command = new ArrayList<>();
 
-        command.add("/usr/local/bin/yubico-piv-tool");
+        command.add(CMD);
         command.add("-a");
         command.add("read-object");
         command.add("--id");
@@ -37,6 +40,16 @@ public class TestYubikey {
             System.out.printf("yubico-piv-tool exit status: %d\n", ok);
             if(ok == 0) {
                 System.out.printf("Read %d bytes of data\n", data.length());
+                System.out.println(data);
+                // Convert from hex to decimal string
+                StringBuilder tmp = new StringBuilder();
+                for (int n = 0; n < data.length(); n += 2) {
+                    String digits = data.substring(n, n + 2);
+                    int value = Integer.parseInt(digits, 16);
+                    tmp.append((char) value);
+                }
+                tmp.append(tmp.toString());
+                System.out.println(tmp.toString());
             }
         } catch (IOException |InterruptedException e) {
             System.out.printf("Yubikey Error, %s", e);
