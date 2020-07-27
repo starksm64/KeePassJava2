@@ -12,3 +12,5 @@ target
 *.iws
 .idea
 *.swp
+*.jar
+*.dmg
