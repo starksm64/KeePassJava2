@@ -32,7 +32,6 @@ public class ReadYubikey {
         String data = null;
         int ok = 0;
         try {
-            System.out.printf("Starting %s\n", pb);
             pb.redirectError(ProcessBuilder.Redirect.INHERIT);
             Process process = pb.start();
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -49,7 +48,6 @@ public class ReadYubikey {
                     int value = Integer.parseInt(digits, 16);
                     tmp.append((char) value);
                 }
-                tmp.append(tmp.toString());
                 System.out.println(tmp.toString());
             }
         } catch (IOException |InterruptedException e) {
